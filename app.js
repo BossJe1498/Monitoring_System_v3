@@ -44,11 +44,7 @@ function saveDocs(){
 }
 
 function renderDocs(filter){
-  if(!docsTable.querySelector('thead')) {
-    const thead = document.createElement('thead');
-    thead.innerHTML = '<tr><th><input type="checkbox" id="select-all"></th><th>Control Number</th><th>Title</th><th>Notes</th><th>Owner</th><th>Status</th><th>Wins Status</th><th>Created</th><th>Updated</th><th>Age</th><th>Actions</th></tr>';
-    docsTable.insertBefore(thead, docsTableBody);
-  }
+  if(selectAll) selectAll.checked = false;
   docsTableBody.innerHTML = '';
   const q = filter ? filter.toLowerCase() : '';
   let list = docs.slice();
@@ -89,7 +85,7 @@ function renderDocs(filter){
     }
 
     tr.innerHTML = `
-      <td><input type="checkbox" class="row-select" data-control="${escapeHtml(doc.controlNumber)}"></td>
+      <td><input type="checkbox" class="row-checkbox" value="${escapeHtml(doc.controlNumber)}"></td>
       <td>${escapeHtml(doc.controlNumber)}</td>
       <td>${escapeHtml(doc.title)}</td>
       <td class="notes-cell"><span class="notes-text" title="${escapeHtml(doc.notes || '')}">${escapeHtml(doc.notes || '')}</span><button type="button" class="note-edit-btn" data-note-edit="${escapeHtml(doc.controlNumber)}">✎</button></td>
@@ -117,12 +113,6 @@ function renderDocs(filter){
   renderStatusChart();
   renderWinsChart();
   renderAgeOverview();
-  if(!document.getElementById('bulk-actions')) {
-    const div = document.createElement('div');
-    div.id = 'bulk-actions';
-    div.innerHTML = '<select id="bulk-status"><option value="Revision">Revision</option><option value="Routing">Routing</option><option value="Approved">Approved</option><option value="Rejected">Rejected</option></select> <button id="update-selected">Update Selected Status</button> <button id="delete-selected">Delete Selected</button>';
-    docsTable.parentNode.insertBefore(div, docsTable.nextSibling);
-  }
 }
 
 function computeWinsCounts(){
@@ -902,28 +892,37 @@ downloadTemplateBtn && downloadTemplateBtn.addEventListener('click', () => {
   downloadTemplate();
 });
 
-// Bulk actions
-document.addEventListener('change', e => {
-  if(e.target.id === 'select-all'){
-    const checked = e.target.checked;
-    document.querySelectorAll('.row-select').forEach(cb => cb.checked = checked);
+const selectAll = document.getElementById('select-all');
+const bulkUpdateBtn = document.getElementById('bulk-update');
+const bulkDeleteBtn = document.getElementById('bulk-delete');
+
+selectAll && selectAll.addEventListener('change', () => {
+  const checkboxes = docsTableBody.querySelectorAll('.row-checkbox');
+  checkboxes.forEach(cb => cb.checked = selectAll.checked);
+});
+
+bulkDeleteBtn && bulkDeleteBtn.addEventListener('click', () => {
+  const selected = Array.from(docsTableBody.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
+  if(selected.length === 0){
+    alert('No documents selected.');
+    return;
+  }
+  if(confirm(`Delete ${selected.length} selected documents?`)){
+    selected.forEach(controlNumber => deleteDoc(controlNumber));
+    renderDocs();
   }
 });
 
-document.addEventListener('click', e => {
-  if(e.target.id === 'delete-selected'){
-    const selected = Array.from(document.querySelectorAll('.row-select:checked')).map(cb => cb.dataset.control);
-    if(selected.length === 0) return;
-    if(confirm(`Delete ${selected.length} selected documents?`)){
-      selected.forEach(deleteDoc);
-      renderDocs();
-    }
-  } else if(e.target.id === 'update-selected'){
-    const selected = Array.from(document.querySelectorAll('.row-select:checked')).map(cb => cb.dataset.control);
-    if(selected.length === 0) return;
-    const newStatus = document.getElementById('bulk-status').value;
-    selected.forEach(cn => {
-      const doc = docs.find(d => d.controlNumber === cn);
+bulkUpdateBtn && bulkUpdateBtn.addEventListener('click', () => {
+  const selected = Array.from(docsTableBody.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
+  if(selected.length === 0){
+    alert('No documents selected.');
+    return;
+  }
+  const newStatus = prompt('Enter new status for selected documents (Revision, Routing, Approved, Rejected):');
+  if(newStatus && ['Revision', 'Routing', 'Approved', 'Rejected'].includes(newStatus)){
+    selected.forEach(controlNumber => {
+      const doc = docs.find(d => d.controlNumber === controlNumber);
       if(doc){
         doc.status = newStatus;
         doc.updatedAt = Date.now();
