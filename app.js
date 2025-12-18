@@ -103,8 +103,8 @@ function renderDocs(filter){
       <td>${escapeHtml(updatedText)}</td>
       <td><span class="age ${ageClass}">${ageDays !== '' ? escapeHtml(ageDays) : ''}</span></td>
       <td class="actions">
-        <button data-edit="${escapeHtml(doc.controlNumber)}" class="edit">Edit</button>
-        <button data-delete="${escapeHtml(doc.controlNumber)}" class="delete">Delete</button>
+        <button data-edit="${escapeHtml(doc.controlNumber)}" title="Edit">✏️</button>
+        <button data-delete="${escapeHtml(doc.controlNumber)}" class="delete" title="Delete">🗑️</button>
       </td>
     `;
     docsTableBody.appendChild(tr);
@@ -930,5 +930,11 @@ bulkUpdateBtn && bulkUpdateBtn.addEventListener('click', () => {
     });
     saveDocs();
     renderDocs();
+  }
+});
+
+docsTableBody.addEventListener('change', e => {
+  if(e.target.classList.contains('row-checkbox')){
+    e.target.closest('tr').classList.toggle('selected-row', e.target.checked);
   }
 });
