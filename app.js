@@ -840,14 +840,14 @@ function importFromCSVText(text){
     if(idx >= 0){
       if(overwriteDuplicates){ 
         doc.createdAt = doc.createdAt || docs[idx].createdAt; // use from CSV if valid, else preserve
-        doc.updatedAt = Date.now(); // set updatedAt to now
+        doc.updatedAt = doc.updatedAt || Date.now(); // use from CSV if valid, else set to now
         docs[idx] = doc; 
         updated++; 
       }
       else { skipped++; }
     } else { 
       doc.createdAt = doc.createdAt || Date.now(); // use from CSV if valid, else set to now
-      doc.updatedAt = Date.now(); // ensure updatedAt is current time for new docs
+      doc.updatedAt = doc.updatedAt || Date.now(); // use from CSV if valid, else set to now
       docs.unshift(doc); 
       added++; 
     }
