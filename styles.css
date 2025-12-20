@@ -61,7 +61,8 @@ footer{max-width:980px;margin:6px auto;padding:6px 16px;color:var(--muted)}
 .sidebar-toggle{position:absolute;left:260px;top:14px;width:34px;height:40px;border-radius:6px;border:1px solid #e6eef8;background:#ffffff;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,0.08);z-index:2200}
 /* When sidebar is collapsed, move the toggle to the left edge */
 .left-sidebar.collapsed + .sidebar-toggle{left:4px}
-.left-sidebar.collapsed{width:0;min-width:0;padding:0;overflow:visible;opacity:0.15}
+.left-sidebar.collapsed{width:0;min-width:0;padding:0;overflow:hidden;opacity:0;visibility:hidden;pointer-events:none}
+.left-sidebar.collapsed .approved-list, .left-sidebar.collapsed h3, .left-sidebar.collapsed .sidebar-controls, .left-sidebar.collapsed .sidebar-pagination { display:none !important; }
 .left-sidebar{transition:width 200ms ease, opacity 200ms ease}
 
 /* Ensure toggle moves smoothly */
@@ -140,6 +141,11 @@ footer{max-width:980px;margin:6px auto;padding:6px 16px;color:var(--muted)}
 .note-edit-btn{background:#fff;color:var(--accent);border:1px solid #e0e6f0;padding:2px 6px;border-radius:6px;margin-left:6px}
 .note-save-btn{background:#2b6a2b;padding:4px 6px;margin-left:6px}
 .note-cancel-btn{background:#a63131;padding:4px 6px;margin-left:6px}
+
+/* Forward/Receive buttons */
+.forward{background:#fff;color:var(--accent);border:1px solid #e0e6f0;padding:4px 6px;border-radius:6px;margin-left:6px}
+.receive{background:#2b8a2b;color:#fff;padding:4px 6px;border-radius:6px;margin-left:6px;border:0}
+.forwarded-label{display:inline-block;padding:4px 8px;border-radius:6px;background:#fff3e8;color:#d08a1a;font-weight:700;margin-left:6px}
 
 /* Column widths for the documents table (Select, Control, Title, Notes, Owner, Status, WINS, Created, Updated, Age, Actions) */
 
