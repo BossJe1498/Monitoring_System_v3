@@ -2,9 +2,15 @@
 // Stores documents in localStorage under key 'dms_docs'
 
 const STORAGE_KEY = 'dms_docs_v1';
-const DEMO_USER = { username: 'admin', password: 'password' };
+// Basic demo users and roles
+const USERS = {
+  admin: { password: 'password', role: 'admin' },
+  user: { password: 'password', role: 'user' }
+};
 // Key used to persist authenticated user across refreshes
 const AUTH_KEY = 'dms_auth_v1';
+const AUTH_ROLE_KEY = 'dms_auth_role_v1';
+let currentUserRole = null;
 
 // Elements
 const loginSection = document.getElementById('login-section');
@@ -113,6 +119,8 @@ function renderDocs(filter){
       else ageClass = 'age-good';
     }
 
+    const isAdmin = (currentUserRole === 'admin');
+
     tr.innerHTML = `
       <td><input type="checkbox" class="row-checkbox" value="${escapeHtml(doc.controlNumber)}"></td>
       <td>${escapeHtml(doc.controlNumber)}</td>
@@ -139,7 +147,7 @@ function renderDocs(filter){
       <td><span class="age ${ageClass}">${ageDays !== '' ? escapeHtml(ageDays) : ''}</span></td>
       <td class="actions">
         <button data-edit="${escapeHtml(doc.controlNumber)}" title="Edit">✏️</button>
-        <button data-delete="${escapeHtml(doc.controlNumber)}" class="delete" title="Delete">🗑️</button>
+        ${isAdmin ? `<button data-delete="${escapeHtml(doc.controlNumber)}" class="delete" title="Delete">🗑️</button>` : ''}
       </td>
     `;
     docsTableBody.appendChild(tr);
@@ -422,7 +430,9 @@ function deleteDoc(controlNumber){
 
 // Auth
 function signIn(username, password){
-  return username === DEMO_USER.username && password === DEMO_USER.password;
+  const u = USERS[username];
+  if(u && u.password === password) return u.role;
+  return null;
 }
 
 function showDashboard(userName){
@@ -432,8 +442,11 @@ function showDashboard(userName){
   dashboard.classList.remove('hidden');
   userInfo.classList.remove('hidden');
   usernameDisplay.textContent = userName;
+  // restore role from storage if available
+  try{ currentUserRole = localStorage.getItem(AUTH_ROLE_KEY) || currentUserRole; }catch(e){}
   loadDocs();
   renderDocs();
+  adjustUIForRole();
   startInactivityWatcher();
 }
 
@@ -443,8 +456,32 @@ function signOut(){
   dashboard.classList.add('hidden');
   userInfo.classList.add('hidden');
   usernameDisplay.textContent = '';
-  try{ localStorage.removeItem(AUTH_KEY); }catch(e){}
+  currentUserRole = null;
+  try{ localStorage.removeItem(AUTH_KEY); localStorage.removeItem(AUTH_ROLE_KEY); }catch(e){}
   stopInactivityWatcher();
+}
+
+// Adjust UI and permissions based on role (admin vs user)
+function adjustUIForRole(){
+  try{ currentUserRole = currentUserRole || localStorage.getItem(AUTH_ROLE_KEY) || null; }catch(e){}
+  const isAdmin = (currentUserRole === 'admin');
+  const roleBadge = document.getElementById('role-badge');
+
+  // Show/hide global controls
+  if(bulkDeleteBtn) bulkDeleteBtn.style.display = isAdmin ? '' : 'none';
+  if(bulkUpdateBtn) bulkUpdateBtn.style.display = isAdmin ? '' : 'none';
+  if(importFileInput) importFileInput.style.display = isAdmin ? '' : 'none';
+  if(exportCsvBtn) exportCsvBtn.style.display = isAdmin ? '' : 'none';
+  if(downloadTemplateBtn) downloadTemplateBtn.style.display = isAdmin ? '' : 'none';
+
+  // Update role badge UI
+  if(roleBadge){
+    roleBadge.textContent = isAdmin ? 'Admin' : (currentUserRole ? 'User' : '');
+    roleBadge.style.display = currentUserRole ? '' : 'none';
+  }
+
+  // Re-render docs so per-row actions reflect role
+  try{ renderDocs(searchInput.value.trim()); }catch(e){}
 }
 
 // Events
@@ -452,10 +489,13 @@ loginForm.addEventListener('submit', e => {
   e.preventDefault();
   const u = document.getElementById('username').value.trim();
   const p = document.getElementById('password').value;
-  if(signIn(u,p)){
+  const role = signIn(u,p);
+  if(role){
     // persist login so refresh doesn't return to the login form
-    try{ localStorage.setItem(AUTH_KEY, u); }catch(e){}
+    try{ localStorage.setItem(AUTH_KEY, u); localStorage.setItem(AUTH_ROLE_KEY, role); }catch(e){}
     showDashboard(u);
+    currentUserRole = role;
+    adjustUIForRole();
   } else {
     alert('Invalid credentials');
   }
@@ -832,14 +872,16 @@ document.addEventListener('DOMContentLoaded', () => {
   if(sidebarToggle){
     // restore previous state
     const collapsed = localStorage.getItem('dms_sidebar_collapsed') === '1';
-    if(collapsed){
-      const sb = document.getElementById('left-sidebar');
-      if(sb) sb.classList.add('collapsed');
+    const sb = document.getElementById('left-sidebar');
+    if(collapsed && sb){
+      sb.classList.add('collapsed');
       sidebarToggle.setAttribute('aria-expanded','false');
       sidebarToggle.textContent = '›';
     }
 
-    sidebarToggle.addEventListener('click', () => {
+    // Prevent missing hit area: ensure toggle sits outside normal flow and listens to clicks
+    sidebarToggle.addEventListener('click', (ev) => {
+      ev.stopPropagation();
       const sb = document.getElementById('left-sidebar');
       if(!sb) return;
       const isCollapsed = sb.classList.toggle('collapsed');
@@ -847,6 +889,8 @@ document.addEventListener('DOMContentLoaded', () => {
       sidebarToggle.textContent = isCollapsed ? '›' : '‹';
       // persist
       try{ localStorage.setItem('dms_sidebar_collapsed', isCollapsed ? '1' : '0'); }catch(e){}
+      // re-render sidebar so pagination remains consistent
+      renderLeftSidebar();
     });
   }
 
