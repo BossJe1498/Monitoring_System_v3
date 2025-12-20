@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Admin Inbox — Document Monitoring System</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Admin Inbox</h1>
+      <div class="header-right">
+        <div id="clock" class="clock" aria-live="polite"></div>
+        <div id="user-info" class="hidden">
+          <span id="username-display"></span>
+          <span id="role-badge" class="role-badge" style="display:none;margin-left:8px"></span>
+          <button id="logout-btn">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- Keep login-section and dashboard IDs so app.js can initialize here as well -->
+      <section id="login-section" class="card">
+        <h2>Login</h2>
+        <form id="login-form">
+          <label for="username">Username</label>
+          <input id="username" name="username" required />
+
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" required />
+
+          <button type="submit">Sign In</button>
+        </form>
+        <p class="muted">Default demo credentials: <code>admin</code> / <code>password</code></p>
+      </section>
+
+      <section id="dashboard" class="hidden">
+        <div style="max-width:980px;margin:18px auto;padding:0 16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div>
+              <a href="index.html">← Back to Dashboard</a>
+            </div>
+            <div>
+              <button id="refresh-inbox" style="margin-left:8px">Refresh</button>
+            </div>
+          </div>
+
+          <div id="admin-inbox" class="card">
+            <h3>Admin Inbox</h3>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+              <select id="admin-inbox-filter">
+                <option value="forwarded">Forwarded</option>
+                <option value="received">Received</option>
+                <option value="all">All</option>
+              </select>
+              <input id="admin-inbox-search" placeholder="Search inbox..." style="flex:1;padding:6px;border:1px solid #e6eef8;border-radius:6px" />
+            </div>
+            <div id="admin-inbox-list"></div>
+            <div id="admin-inbox-pagination" class="sidebar-pagination"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <small>Local demo — data stored in your browser. <br>
+      j.hutalla.</small>
+    </footer>
+
+    <!-- Reuse modal so View works here too -->
+    <div id="doc-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-overlay" id="modal-overlay"></div>
+      <div class="modal-content card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <button class="modal-close" id="modal-close" title="Close">×</button>
+        <h2 id="modal-title">Document Details</h2>
+        <form id="modal-doc-form">
+          <label>Control Number</label>
+          <input id="modal-control" name="controlNumber" required />
+          <label>Title</label>
+          <input id="modal-title-input" name="title" />
+          <label>Owner</label>
+          <input id="modal-owner" name="owner" />
+          <label>Status</label>
+          <select id="modal-status" name="status">
+            <option>Revision</option>
+            <option>Routing</option>
+            <option>Approved</option>
+            <option>Rejected</option>
+            <option>Received</option>
+          </select>
+          <label>WINS Status</label>
+          <select id="modal-wins" name="winsStatus">
+            <option>Approved</option>
+            <option>Pending for Approve</option>
+            <option>Rejected</option>
+          </select>
+          <label>Created</label>
+          <input id="modal-created" name="createdAt" type="datetime-local" />
+          <label>Notes</label>
+          <textarea id="modal-notes" name="notes" rows="4"></textarea>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button type="submit">Save</button>
+            <button type="button" id="modal-open-new" title="Open in new tab">Open in new tab ↗</button>
+            <button type="button" id="modal-cancel">Cancel</button>
+          </div>
+          <input type="hidden" id="modal-original-control" />
+        </form>
+      </div>
+    </div>
+
+    <script>
+      // Optionally allow non-admin to land here and sign in -- keep UX simple.
+      // Provide a refresh action to re-render inbox (useful after sign-in)
+      document.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('refresh-inbox');
+        if(btn) btn.addEventListener('click', () => { try{ window.renderAdminInbox && window.renderAdminInbox(); }catch(e){} });
+      });
+    </script>
+
+    <script src="app.js"></script>
+  </body>
+</html>
