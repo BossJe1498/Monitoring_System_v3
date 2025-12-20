@@ -127,7 +127,13 @@ function renderDocs(filter){
           <option ${doc.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
         </select>
       </td>
-      <td>${escapeHtml(doc.winsStatus || '')}</td>
+      <td>
+        <select data-control-wins="${escapeHtml(doc.controlNumber)}" class="wins-select">
+          <option ${doc.winsStatus === 'Approved' ? 'selected' : ''}>Approved</option>
+          <option ${doc.winsStatus === 'Pending for Approve' ? 'selected' : ''}>Pending for Approve</option>
+          <option ${doc.winsStatus === 'Rejected' ? 'selected' : ''}>Rejected</option>
+        </select>
+      </td>
       <td>${escapeHtml(createdText)}</td>
       <td>${escapeHtml(updatedText)}</td>
       <td><span class="age ${ageClass}">${ageDays !== '' ? escapeHtml(ageDays) : ''}</span></td>
@@ -285,7 +291,7 @@ function renderLeftSidebar(){
     const ul = document.createElement('ul'); ul.className = 'approved-ul';
     slice.forEach(d => {
       const li = document.createElement('li');
-      const a = document.createElement('a');
+          const a = document.createElement('a');
       a.href = 'document.html?control=' + encodeURIComponent(d.controlNumber);
       a.dataset.control = d.controlNumber;
       a.textContent = (d.controlNumber || '') + ' — ' + (d.title || '');
@@ -420,6 +426,8 @@ function signIn(username, password){
 }
 
 function showDashboard(userName){
+  // remove centered login if present
+  loginSection.classList.remove('centered');
   loginSection.classList.add('hidden');
   dashboard.classList.remove('hidden');
   userInfo.classList.remove('hidden');
@@ -431,6 +439,7 @@ function showDashboard(userName){
 
 function signOut(){
   loginSection.classList.remove('hidden');
+  loginSection.classList.add('centered');
   dashboard.classList.add('hidden');
   userInfo.classList.add('hidden');
   usernameDisplay.textContent = '';
@@ -703,6 +712,19 @@ docsTableBody.addEventListener('change', e => {
       saveDocs();
       renderDocs(searchInput.value.trim());
     }
+    return;
+  }
+  const winsSel = e.target.closest('.wins-select');
+  if(winsSel){
+    const ctl = winsSel.getAttribute('data-control-wins');
+    const doc = docs.find(d => d.controlNumber === ctl);
+    if(doc){
+      doc.winsStatus = winsSel.value;
+      doc.updatedAt = Date.now();
+      saveDocs();
+      renderDocs(searchInput.value.trim());
+    }
+    return;
   }
 });
 
@@ -778,10 +800,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if(storedUser){
       showDashboard(storedUser);
     } else {
+      // center login form when no user stored
       loadDocs();
+      if(loginSection) loginSection.classList.add('centered');
     }
   }catch(e){
     loadDocs();
+    if(loginSection) loginSection.classList.add('centered');
   }
 
   // Sidebar search & page size
