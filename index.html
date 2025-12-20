@@ -40,11 +40,21 @@
 			<section id="dashboard" class="hidden">
 				<div class="layout">
 					<aside id="left-sidebar" class="card left-sidebar">
+						<div class="sidebar-controls" style="margin-bottom:10px;display:flex;gap:8px;align-items:center;">
+							<input id="sidebar-search" placeholder="Search sidebar..." style="flex:1;padding:6px;border:1px solid #e6eef8;border-radius:6px" />
+							<select id="sidebar-page-size" style="padding:6px;border:1px solid #e6eef8;border-radius:6px">
+								<option value="5">5</option>
+								<option value="8" selected>8</option>
+								<option value="12">12</option>
+							</select>
+						</div>
 						<h3>Approved by Status</h3>
 						<div id="approved-by-status" class="approved-list"></div>
+						<div id="by-status-pagination" class="sidebar-pagination" style="margin-bottom:10px"></div>
 						<hr />
 						<h3>Approved by WINS</h3>
 						<div id="approved-by-wins" class="approved-list"></div>
+						<div id="by-wins-pagination" class="sidebar-pagination" style="margin-bottom:10px"></div>
 					</aside>
 					<div class="main-column">
 						<div class="controls">
@@ -160,7 +170,47 @@
 			j.hutalla.</small>
 		</footer>
 
-		<script src="app.js"></script>
+<!-- Document details modal (opens from left sidebar) -->
+			<div id="doc-modal" class="modal hidden" aria-hidden="true">
+				<div class="modal-overlay" id="modal-overlay"></div>
+				<div class="modal-content card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+					<button class="modal-close" id="modal-close" title="Close">×</button>
+					<h2 id="modal-title">Document Details</h2>
+					<form id="modal-doc-form">
+						<label>Control Number</label>
+						<input id="modal-control" name="controlNumber" required />
+						<label>Title</label>
+						<input id="modal-title-input" name="title" />
+						<label>Owner</label>
+						<input id="modal-owner" name="owner" />
+						<label>Status</label>
+						<select id="modal-status" name="status">
+							<option>Revision</option>
+							<option>Routing</option>
+							<option>Approved</option>
+							<option>Rejected</option>
+						</select>
+						<label>WINS Status</label>
+						<select id="modal-wins" name="winsStatus">
+							<option>Approved</option>
+							<option>Pending for Approve</option>
+							<option>Rejected</option>
+						</select>
+						<label>Created</label>
+						<input id="modal-created" name="createdAt" type="datetime-local" />
+						<label>Notes</label>
+						<textarea id="modal-notes" name="notes" rows="4"></textarea>
+						<div style="display:flex;gap:8px;margin-top:10px">
+							<button type="submit">Save</button>
+							<button type="button" id="modal-open-new" title="Open in new tab">Open in new tab ↗</button>
+							<button type="button" id="modal-cancel">Cancel</button>
+						</div>
+						<input type="hidden" id="modal-original-control" />
+					</form>
+				</div>
+			</div>
+
+			<script src="app.js"></script>
 	</body>
 </html>
 
