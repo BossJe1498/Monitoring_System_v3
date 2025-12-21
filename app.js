@@ -403,6 +403,8 @@ function renderAdminInbox(){
     list = list.filter(d => d.forwarded);
   } else if(filter === 'received'){
     list = list.filter(d => d.adminStatus === 'Received');
+  } else if(filter === 'returned'){
+    list = list.filter(d => d.adminStatus === 'Returned');
   } else if(filter === 'all'){
     list = list.filter(d => d.forwarded || d.adminStatus);
   }
@@ -653,6 +655,8 @@ function signOut(){
   currentUserRole = null;
   try{ localStorage.removeItem(AUTH_KEY); localStorage.removeItem(AUTH_ROLE_KEY); }catch(e){}
   stopInactivityWatcher();
+  // reflect UI changes for signed-out state
+  try{ adjustUIForRole(); }catch(e){}
 }
 
 // Adjust UI and permissions based on role (admin vs user)
@@ -662,11 +666,16 @@ function adjustUIForRole(){
   const roleBadge = document.getElementById('role-badge');
 
   // Show/hide global controls
+  // Bulk delete remains admin-only, but bulk-update/import/export/download are allowed for any signed-in user
   if(bulkDeleteBtn) bulkDeleteBtn.style.display = isAdmin ? '' : 'none';
-  if(bulkUpdateBtn) bulkUpdateBtn.style.display = isAdmin ? '' : 'none';
-  if(importFileInput) importFileInput.style.display = isAdmin ? '' : 'none';
-  if(exportCsvBtn) exportCsvBtn.style.display = isAdmin ? '' : 'none';
-  if(downloadTemplateBtn) downloadTemplateBtn.style.display = isAdmin ? '' : 'none';
+  if(bulkUpdateBtn) bulkUpdateBtn.style.display = currentUserRole ? '' : 'none';
+  if(importFileInput) importFileInput.style.display = currentUserRole ? '' : 'none';
+  if(exportCsvBtn) exportCsvBtn.style.display = currentUserRole ? '' : 'none';
+  if(downloadTemplateBtn) downloadTemplateBtn.style.display = currentUserRole ? '' : 'none';
+
+  // Show Full Documents View button only when signed in
+  const documentsFullBtn = document.getElementById('documents-full-page-btn');
+  if(documentsFullBtn) documentsFullBtn.style.display = currentUserRole ? '' : 'none';
 
   // Update role badge UI
   if(roleBadge){
@@ -674,9 +683,13 @@ function adjustUIForRole(){
     roleBadge.style.display = currentUserRole ? '' : 'none';
   }
 
-  // Admin-only: show link to dedicated admin inbox page
+  // Admin-only: show link to dedicated admin inbox page and the inbox badge
   const adminInboxPageBtn = document.getElementById('admin-inbox-page-btn');
   if(adminInboxPageBtn) adminInboxPageBtn.style.display = isAdmin ? '' : 'none';
+  const adminInboxBadge = document.getElementById('admin-inbox-badge');
+  if(adminInboxBadge) adminInboxBadge.style.display = isAdmin ? '' : 'none';
+  // ensure counts and attach click handler once
+  try{ updateAdminHeaderBadge(); const bb = document.getElementById('admin-inbox-badge-btn'); if(bb && !bb.dataset._inboxListener){ bb.addEventListener('click', () => { window.location.href = 'admin_inbox.html'; }); bb.dataset._inboxListener = '1'; } }catch(e){}
 
   // Re-render docs so per-row actions reflect role
   try{ renderDocs(searchInput.value.trim()); }catch(e){}
@@ -734,6 +747,7 @@ docForm.addEventListener('submit', e => {
   const owner = document.getElementById('doc-owner').value.trim();
   const status = document.getElementById('doc-status').value;
   const winsStatus = document.getElementById('wins-status').value;
+  const adminStatus = (document.getElementById('doc-admin-status') && document.getElementById('doc-admin-status').value) || '';
   const notes = document.getElementById('doc-notes').value.trim();
   if(!controlNumber || !title){ alert('Control number and title are required'); return; }
 
@@ -786,12 +800,12 @@ docForm.addEventListener('submit', e => {
       const createdAt = parsedCreated || (existing && existing.createdAt) || Date.now();
       // internal delete during rename (bypass admin check)
       deleteDocInternal(editingKey);
-      addOrUpdateDoc({ controlNumber, title, owner, status, winsStatus, notes, createdAt, updatedAt: Date.now() });
+      addOrUpdateDoc({ controlNumber, title, owner, status, winsStatus, adminStatus, notes, createdAt, updatedAt: Date.now() });
     } else {
       // update in-place; allow createdAt modification if provided
       const existing = docs.find(d => d.controlNumber === editingKey);
       const createdAt = parsedCreated || (existing && existing.createdAt) || Date.now();
-      addOrUpdateDoc({ controlNumber, title, owner, status, winsStatus, notes, createdAt, updatedAt: Date.now() });
+      addOrUpdateDoc({ controlNumber, title, owner, status, winsStatus, adminStatus, notes, createdAt, updatedAt: Date.now() });
     }
   } else {
     // new document
@@ -803,7 +817,7 @@ docForm.addEventListener('submit', e => {
       return;
     }
     const createdAtForNew = parsedCreated || Date.now();
-    addOrUpdateDoc({ controlNumber, title, owner, status, winsStatus, notes, createdAt: createdAtForNew, updatedAt: Date.now() });
+    addOrUpdateDoc({ controlNumber, title, owner, status, winsStatus, adminStatus, notes, createdAt: createdAtForNew, updatedAt: Date.now() });
   }
 
   // cleanup
@@ -1216,6 +1230,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('modal-owner').value = doc.owner || '';
     document.getElementById('modal-status').value = doc.status || 'Revision';
     document.getElementById('modal-wins').value = doc.winsStatus || 'Pending for Approve';
+    // populate admin status (allow both user and admin to edit)
+    const modalAdminEl = document.getElementById('modal-admin-status');
+    if(modalAdminEl) modalAdminEl.value = doc.adminStatus || '';
     document.getElementById('modal-created').value = msToDatetimeLocal(doc.createdAt);
     document.getElementById('modal-notes').value = doc.notes || '';
     openModal();
@@ -1236,6 +1253,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const owner = document.getElementById('modal-owner').value.trim();
     const status = document.getElementById('modal-status').value;
     const winsStatus = document.getElementById('modal-wins').value;
+    const adminStatus = (document.getElementById('modal-admin-status') && document.getElementById('modal-admin-status').value) || '';
     const notes = document.getElementById('modal-notes').value.trim();
     const createdVal = document.getElementById('modal-created').value || '';
     const createdMs = datetimeLocalToMs(createdVal);
@@ -1254,7 +1272,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // find existing doc
     const existingIdx = docs.findIndex(d => d.controlNumber === original);
     let createdAtFinal = createdMs || (existingIdx >= 0 ? docs[existingIdx].createdAt : Date.now());
-    const entry = { controlNumber, title, owner, status, winsStatus, notes, createdAt: createdAtFinal, updatedAt: Date.now() };
+    const entry = { controlNumber, title, owner, status, winsStatus, adminStatus, notes, createdAt: createdAtFinal, updatedAt: Date.now() };
 
     if(existingIdx >= 0){
       // if control changed, delete old and add new
@@ -1296,10 +1314,11 @@ function csvEscape(field){
   return '"' + s + '"';
 }
 
-function exportToCSV(){
+function exportToCSV(selectedControls){
   const headers = ['controlNumber','title','notes','owner','status','winsStatus','createdAt','updatedAt'];
   const lines = [headers.join(',')];
-  docs.forEach(d => {
+  const source = Array.isArray(selectedControls) && selectedControls.length ? docs.filter(d => selectedControls.includes(d.controlNumber)) : docs;
+  source.forEach(d => {
     const row = [d.controlNumber, d.title, d.notes || '', d.owner || '', d.status || '', d.winsStatus || '', formatDateForCSV(d.createdAt), formatDateForCSV(d.updatedAt)];
     lines.push(row.map(csvEscape).join(','));
   });
@@ -1473,8 +1492,10 @@ importFileInput && importFileInput.addEventListener('change', e => {
 });
 
 exportCsvBtn && exportCsvBtn.addEventListener('click', () => {
-  // Allow CSV export for both user and admin
-  exportToCSV();
+  // Allow CSV export for both user and admin; if rows are selected, export only selected
+  const selected = Array.from(docsTableBody.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
+  if(selected.length) exportToCSV(selected);
+  else exportToCSV();
 });
 
 downloadTemplateBtn && downloadTemplateBtn.addEventListener('click', () => {
@@ -1509,18 +1530,36 @@ bulkUpdateBtn && bulkUpdateBtn.addEventListener('click', () => {
     alert('No documents selected.');
     return;
   }
-  const newStatus = prompt('Enter new status for selected documents (Revision, Routing, Approved, Rejected):');
-  if(newStatus && ['Revision', 'Routing', 'Approved', 'Rejected'].includes(newStatus)){
-    selected.forEach(controlNumber => {
-      const doc = docs.find(d => d.controlNumber === controlNumber);
-      if(doc){
-        doc.status = newStatus;
-        doc.updatedAt = Date.now();
-      }
-    });
-    saveDocs();
-    renderDocs();
+  const field = prompt('Which field to update for selected documents? Enter one of: status, winsStatus, adminStatus', 'status');
+  if(!field) return;
+  const allowedFields = ['status','winsStatus','adminStatus'];
+  if(!allowedFields.includes(field)){
+    alert('Invalid field. Allowed: status, winsStatus, adminStatus');
+    return;
   }
+  let allowedValues = null;
+  if(field === 'status') allowedValues = ['Revision','Routing','Approved','Rejected'];
+  if(field === 'winsStatus') allowedValues = ['Approved','Pending for Approve','Rejected'];
+  if(field === 'adminStatus') allowedValues = ['', 'Received','Returned'];
+  const newValue = prompt(`Enter new value for ${field}. Allowed values: ${allowedValues.join(', ')}`);
+  if(newValue === null) return;
+  if(!allowedValues.includes(newValue)){
+    alert('Invalid value for ' + field);
+    return;
+  }
+  selected.forEach(controlNumber => {
+    const doc = docs.find(d => d.controlNumber === controlNumber);
+    if(doc){
+      if(field === 'adminStatus'){
+        if(newValue === '') delete doc.adminStatus; else doc.adminStatus = newValue;
+      } else {
+        doc[field] = newValue;
+      }
+      doc.updatedAt = Date.now();
+    }
+  });
+  saveDocs();
+  renderDocs();
 });
 
 docsTableBody.addEventListener('change', e => {
