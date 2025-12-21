@@ -403,6 +403,8 @@ function renderAdminInbox(){
     list = list.filter(d => d.forwarded);
   } else if(filter === 'received'){
     list = list.filter(d => d.adminStatus === 'Received');
+  } else if(filter === 'returned'){
+    list = list.filter(d => d.adminStatus === 'Returned');
   } else if(filter === 'all'){
     list = list.filter(d => d.forwarded || d.adminStatus);
   }
@@ -423,15 +425,15 @@ function renderAdminInbox(){
   slice.forEach(d => {
     const li = document.createElement('li');
     const left = document.createElement('div'); left.style.flex = '1';
-    let adminInfo = '';
+    let adminHtml = '';
     if(d.adminStatus){
       if(d.adminStatus === 'Received'){
-        adminInfo = ' • Admin: Received' + (d.forwardedHandledBy ? ' by ' + escapeHtml(d.forwardedHandledBy) + ' at ' + (d.forwardedHandledAt ? new Date(Number(d.forwardedHandledAt)).toLocaleString() : '') : '');
+        adminHtml = ' <span class="admin-status-label">Admin: Received' + (d.forwardedHandledBy ? ' by ' + escapeHtml(d.forwardedHandledBy) + ' at ' + (d.forwardedHandledAt ? new Date(Number(d.forwardedHandledAt)).toLocaleString() : '') : '') + '</span>';
       } else if(d.adminStatus === 'Returned'){
-        adminInfo = ' • Admin: Returned' + (d.returnedBy ? ' by ' + escapeHtml(d.returnedBy) + ' at ' + (d.returnedAt ? new Date(Number(d.returnedAt)).toLocaleString() : '') : '');
+        adminHtml = ' <span class="forwarded-label">Admin: Returned' + (d.returnedBy ? ' by ' + escapeHtml(d.returnedBy) + ' at ' + (d.returnedAt ? new Date(Number(d.returnedAt)).toLocaleString() : '') : '') + '</span>';
       }
     }
-    left.innerHTML = `<strong>${escapeHtml(d.controlNumber)}</strong> — ${escapeHtml(d.title)} <div class="muted" style="font-size:12px">Status: ${escapeHtml(d.status || '')} ${d.forwarded ? ' • Forwarded by ' + escapeHtml(d.forwardedBy || '') + ' at ' + (d.forwardedAt ? new Date(Number(d.forwardedAt)).toLocaleString() : '') : ''}${adminInfo}</div>`;
+    left.innerHTML = `<strong>${escapeHtml(d.controlNumber)}</strong> — ${escapeHtml(d.title)} <div class="muted" style="font-size:12px">Status: ${escapeHtml(d.status || '')} ${d.forwarded ? ' • Forwarded by ' + escapeHtml(d.forwardedBy || '') + ' at ' + (d.forwardedAt ? new Date(Number(d.forwardedAt)).toLocaleString() : '') : ''}${adminHtml}</div>`;
     const actions = document.createElement('div');
     // view
     const view = document.createElement('button'); view.type = 'button'; view.className = 'open-new-tab'; view.textContent = 'View'; view.title = 'Open details'; view.style.marginLeft = '6px';
@@ -661,12 +663,12 @@ function adjustUIForRole(){
   const isAdmin = (currentUserRole === 'admin');
   const roleBadge = document.getElementById('role-badge');
 
-  // Show/hide global controls
-  if(bulkDeleteBtn) bulkDeleteBtn.style.display = isAdmin ? '' : 'none';
-  if(bulkUpdateBtn) bulkUpdateBtn.style.display = isAdmin ? '' : 'none';
-  if(importFileInput) importFileInput.style.display = isAdmin ? '' : 'none';
-  if(exportCsvBtn) exportCsvBtn.style.display = isAdmin ? '' : 'none';
-  if(downloadTemplateBtn) downloadTemplateBtn.style.display = isAdmin ? '' : 'none';
+  // Show global controls to all users (both Admin and User)
+  if(bulkDeleteBtn) bulkDeleteBtn.style.display = '';
+  if(bulkUpdateBtn) bulkUpdateBtn.style.display = '';
+  if(importFileInput) importFileInput.style.display = '';
+  if(exportCsvBtn) exportCsvBtn.style.display = '';
+  if(downloadTemplateBtn) downloadTemplateBtn.style.display = ''; 
 
   // Update role badge UI
   if(roleBadge){
@@ -699,7 +701,7 @@ loginForm.addEventListener('submit', e => {
   }
 });
 
-logoutBtn.addEventListener('click', () => {
+if(logoutBtn) logoutBtn.addEventListener('click', () => {
   signOut();
 });
 
