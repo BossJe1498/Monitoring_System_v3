@@ -52,6 +52,7 @@
               <select id="admin-inbox-filter">
                 <option value="forwarded">Forwarded</option>
                 <option value="received">Received</option>
+                <option value="returned">Return to IC</option>
                 <option value="all">All</option>
               </select>
               <input id="admin-inbox-search" placeholder="Search inbox..." style="flex:1;padding:6px;border:1px solid #e6eef8;border-radius:6px" />
@@ -88,6 +89,7 @@
             <option>Approved</option>
             <option>Rejected</option>
             <option>Received</option>
+            <option>Return to IC</option>
           </select>
           <label>WINS Status</label>
           <select id="modal-wins" name="winsStatus">
@@ -110,14 +112,20 @@
     </div>
 
     <script>
-      // Optionally allow non-admin to land here and sign in -- keep UX simple.
-      // Provide a refresh action to re-render inbox (useful after sign-in)
+      // Deny access to this page if user is not admin
       document.addEventListener('DOMContentLoaded', () => {
+        try{
+          const role = localStorage.getItem('dms_auth_role_v1');
+          if(role !== 'admin'){
+            alert('Access denied: Admins only. Redirecting to dashboard.');
+            window.location.href = 'index.html';
+            return;
+          }
+        }catch(e){}
         const btn = document.getElementById('refresh-inbox');
         if(btn) btn.addEventListener('click', () => { try{ window.renderAdminInbox && window.renderAdminInbox(); }catch(e){} });
       });
     </script>
-
     <script src="app.js"></script>
   </body>
 </html>
