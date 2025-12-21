@@ -1214,10 +1214,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // populate fields
     document.getElementById('modal-control').value = doc.controlNumber || '';
     document.getElementById('modal-original-control').value = doc.controlNumber || '';
-    document.getElementById('modal-title-input').value = doc.title || '';
-    document.getElementById('modal-owner').value = doc.owner || '';
-    document.getElementById('modal-status').value = doc.status || 'Revision';
-    document.getElementById('modal-wins').value = doc.winsStatus || 'Pending for Approve';
+    // Title / Status / WINS may be removed from modal; set only if elements exist
+    const modalTitleEl = document.getElementById('modal-title-input');
+    if(modalTitleEl) modalTitleEl.value = doc.title || '';
+    const modalOwnerEl = document.getElementById('modal-owner');
+    if(modalOwnerEl) modalOwnerEl.value = doc.owner || '';
+    const modalStatusEl = document.getElementById('modal-status');
+    if(modalStatusEl) modalStatusEl.value = doc.status || 'Revision';
+    const modalWinsEl = document.getElementById('modal-wins');
+    if(modalWinsEl) modalWinsEl.value = doc.winsStatus || 'Pending for Approve';
     document.getElementById('modal-created').value = msToDatetimeLocal(doc.createdAt);
     document.getElementById('modal-notes').value = doc.notes || '';
     openModal();
@@ -1234,16 +1239,19 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     const controlNumber = document.getElementById('modal-control').value.trim();
     const original = document.getElementById('modal-original-control').value || '';
-    const title = document.getElementById('modal-title-input').value.trim();
-    const owner = document.getElementById('modal-owner').value.trim();
-    const status = document.getElementById('modal-status').value;
-    const winsStatus = document.getElementById('modal-wins').value;
-    const notes = document.getElementById('modal-notes').value.trim();
+    const title = document.getElementById('modal-title-input') ? document.getElementById('modal-title-input').value.trim() : '';
+    const owner = document.getElementById('modal-owner') ? document.getElementById('modal-owner').value.trim() : '';
+    const status = document.getElementById('modal-status') ? document.getElementById('modal-status').value : '';
+    const winsStatus = document.getElementById('modal-wins') ? document.getElementById('modal-wins').value : '';
+    const notes = document.getElementById('modal-notes') ? document.getElementById('modal-notes').value.trim() : '';
     const createdVal = document.getElementById('modal-created').value || '';
     const createdMs = datetimeLocalToMs(createdVal);
 
-    // basic validation
-    if(!controlNumber || !title){ alert('Control number and title are required'); return; }
+    // basic validation: control number always required; title may be absent from modal — use existing title
+    if(!controlNumber){ alert('Control number is required'); return; }
+    // If title input exists, require it; otherwise fallback to existing doc title later
+    const modalTitleInputEl = document.getElementById('modal-title-input');
+    if(modalTitleInputEl && !title){ alert('Title is required'); return; }
     const ctrlRe = /^ECOM-\d{4}-\d{4}$/;
     if(!ctrlRe.test(controlNumber)) { alert('Control Number must follow ECOM-YYYY-NNNN'); return; }
 
@@ -1255,16 +1263,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // find existing doc
     const existingIdx = docs.findIndex(d => d.controlNumber === original);
-    let createdAtFinal = createdMs || (existingIdx >= 0 ? docs[existingIdx].createdAt : Date.now());
-    const entry = { controlNumber, title, owner, status, winsStatus, notes, createdAt: createdAtFinal, updatedAt: Date.now() };
 
-    if(existingIdx >= 0){
-      // if control changed, delete old and add new
-      if(controlNumber !== original){ deleteDocInternal(original); }
-      addOrUpdateDoc(entry);
-    } else {
-      addOrUpdateDoc(entry);
+    if(existingIdx < 0){
+      // Creating new documents from modal is not supported (use New Document form)
+      alert('Creating new documents from the modal is not supported. Use the New Document form.');
+      return;
     }
+
+    // Use existing doc values if fields are not present in modal
+    const existing = docs[existingIdx];
+    const finalTitle = modalTitleInputEl ? title : (existing.title || '');
+    const finalStatus = document.getElementById('modal-status') ? status : (existing.status || 'Revision');
+    const finalWins = document.getElementById('modal-wins') ? winsStatus : (existing.winsStatus || 'Pending for Approve');
+
+    let createdAtFinal = createdMs || existing.createdAt || Date.now();
+    const entry = { controlNumber, title: finalTitle, owner, status: finalStatus, winsStatus: finalWins, notes, createdAt: createdAtFinal, updatedAt: Date.now() };
+
+    // update in-place
+    addOrUpdateDoc(entry);
     saveDocs();
     renderDocs();
     closeModal();
