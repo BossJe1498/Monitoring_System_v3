@@ -78,6 +78,15 @@ function stopInactivityWatcher(){
 function loadDocs(){
   try{ docs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
   catch(e){ docs = []; }
+  // migrate legacy 'Received' status to 'Admin Status' with adminStatus marker
+  try{
+    docs.forEach(d => {
+      if(d && d.status === 'Received'){
+        d.status = 'Admin Status';
+        if(!d.adminStatus) d.adminStatus = 'Received';
+      }
+    });
+  }catch(e){}
 }
 
 function saveDocs(){
@@ -139,6 +148,7 @@ function renderDocs(filter){
             <option ${doc.status === 'Routing' ? 'selected' : ''}>Routing</option>
           <option ${doc.status === 'Approved' ? 'selected' : ''}>Approved</option>
           <option ${doc.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
+          ${isAdmin ? `<option ${doc.status === 'Admin Status' ? 'selected' : ''}>Admin Status</option>` : ''}
         </select>
       </td>
       <td>
@@ -155,6 +165,7 @@ function renderDocs(filter){
         <button data-edit="${escapeHtml(doc.controlNumber)}" title="Edit">✏️</button>
         ${!isAdmin && !doc.forwarded ? `<button data-forward="${escapeHtml(doc.controlNumber)}" class="forward" title="Forward to Admin">➡️</button>` : (!isAdmin && doc.forwarded ? `<span class="forwarded-label">Forwarded</span>` : '')}
         ${isAdmin && doc.forwarded ? `<button data-receive="${escapeHtml(doc.controlNumber)}" class="receive" title="Forwarded by ${escapeHtml(doc.forwardedBy || '')} at ${doc.forwardedAt ? new Date(Number(doc.forwardedAt)).toLocaleString() : ''}">✔️ Receive</button>` : ''}
+        ${isAdmin && doc.status === 'Admin Status' && (doc.adminStatus === 'Received' || !doc.adminStatus) ? `<button data-return="${escapeHtml(doc.controlNumber)}" class="return" title="Return to IC">↩️ Return</button>` : (isAdmin && doc.status === 'Admin Status' && doc.adminStatus === 'Returned' ? `<span class="forwarded-label">Returned</span>` : '')}
         <button data-delete="${escapeHtml(doc.controlNumber)}" class="delete" title="Delete">🗑️</button>
       </td> 
     `;
@@ -340,17 +351,7 @@ function renderLeftSidebar(){
   const approvedByWinsDocs = docs.filter(d => d.winsStatus === 'Approved');
   renderList(byWins, approvedByWinsDocs, byWinsPage, byWinsPagination);
 
-  // render admin inbox if admin
-  try{
-    const inbox = document.getElementById('admin-inbox');
-    if(inbox){
-      const role = currentUserRole || localStorage.getItem(AUTH_ROLE_KEY) || null;
-      if(role === 'admin'){
-        inbox.classList.remove('hidden');
-        renderAdminInbox();
-      } else { inbox.classList.add('hidden'); }
-    }
-  }catch(e){}
+
 }
 
 function setAgeStatusFilter(status){
@@ -375,9 +376,10 @@ function renderAdminInbox(){
   if(filter === 'forwarded'){
     list = list.filter(d => d.forwarded);
   } else if(filter === 'received'){
-    list = list.filter(d => d.status === 'Received');
+    // Admin Status items marked as Received
+    list = list.filter(d => d.status === 'Admin Status' && (d.adminStatus === 'Received' || !d.adminStatus));
   } else if(filter === 'all'){
-    list = list.filter(d => d.forwarded || d.status === 'Received');
+    list = list.filter(d => d.forwarded || d.status === 'Admin Status');
   }
   if(adminInboxQuery){
     list = list.filter(d => ((d.controlNumber||'') + ' ' + (d.title||'') + ' ' + (d.owner||'')).toLowerCase().includes(adminInboxQuery));
@@ -405,6 +407,12 @@ function renderAdminInbox(){
     if(d.forwarded){
       const rec = document.createElement('button'); rec.type = 'button'; rec.className = 'receive'; rec.textContent = '✔️ Receive'; rec.setAttribute('data-receive', d.controlNumber); rec.style.marginLeft = '6px';
       actions.appendChild(rec);
+    } else if(d.status === 'Admin Status' && (d.adminStatus === 'Received' || !d.adminStatus)){
+      const ret = document.createElement('button'); ret.type = 'button'; ret.className = 'return'; ret.textContent = '↩️ Return to IC'; ret.setAttribute('data-return', d.controlNumber); ret.style.marginLeft = '6px';
+      actions.appendChild(ret);
+    } else if(d.status === 'Admin Status' && d.adminStatus === 'Returned'){
+      const lbl = document.createElement('span'); lbl.className = 'forwarded-label'; lbl.textContent = 'Returned'; lbl.style.marginLeft = '6px';
+      actions.appendChild(lbl);
     }
     li.appendChild(left);
     li.appendChild(actions);
@@ -435,7 +443,7 @@ function renderTotalDocs(){
 }
 
 function computeStatusCounts(){
-  const counts = { 'Revision':0, 'Routing':0, 'Approved':0, 'Rejected':0, 'Received':0 };
+  const counts = { 'Revision':0, 'Routing':0, 'Approved':0, 'Rejected':0, 'Admin Status':0 };
   docs.forEach(d => {
     const s = d.status || 'Revision';
     if(!(s in counts)) counts[s] = 0;
@@ -443,6 +451,17 @@ function computeStatusCounts(){
   });
   return counts;
 }
+
+function computeAdminStatusCounts(){
+  const res = { Received:0, Returned:0 };
+  docs.forEach(d => {
+    if(d.status === 'Admin Status'){
+      if(d.adminStatus === 'Returned') res.Returned++;
+      else res.Received++;
+    }
+  });
+  return res;
+} 
 
 function renderStatusChart(){
   const container = document.getElementById('status-chart');
@@ -455,7 +474,7 @@ function renderStatusChart(){
     { key: 'Routing', cls: 'status-routing' },
     { key: 'Approved', cls: 'status-approved' },
     { key: 'Rejected', cls: 'status-rejected' },
-    { key: 'Received', cls: 'status-received' }
+    { key: 'Admin Status', cls: 'status-admin' }
   ];
   statuses.forEach(s => {
     const row = document.createElement('div');
@@ -476,6 +495,13 @@ function renderStatusChart(){
     row.appendChild(count);
     row.appendChild(bar);
     row.appendChild(btn);
+    // show Received/Returned breakdown for Admin Status
+    if(s.key === 'Admin Status'){
+      const adminCounts = computeAdminStatusCounts();
+      const sub = document.createElement('div'); sub.className = 'muted'; sub.style.fontSize = '12px'; sub.style.marginLeft = '8px';
+      sub.textContent = `(${adminCounts.Received} received • ${adminCounts.Returned} returned)`;
+      row.appendChild(sub);
+    }
     container.appendChild(row);
   });
 }
@@ -544,14 +570,15 @@ function receiveDoc(controlNumber){
   doc.forwarded = false;
   doc.forwardedHandledAt = Date.now();
   try{ doc.forwardedHandledBy = localStorage.getItem(AUTH_KEY) || ''; }catch(e){ doc.forwardedHandledBy = ''; }
-  // mark as Received when admin handles it
-  doc.status = 'Received';
+  // mark as Admin Status (Received) when admin handles it
+  doc.status = 'Admin Status';
+  doc.adminStatus = 'Received';
   doc.updatedAt = Date.now();
   saveDocs();
   renderDocs();
   // refresh admin inbox view as well
   try{ renderAdminInbox(); }catch(e){}
-} 
+}  
 
 // Auth
 function signIn(username, password){
@@ -559,6 +586,23 @@ function signIn(username, password){
   if(u && u.password === password) return u.role;
   return null;
 }
+
+// Admin action: return document to originator (IC)
+function returnToIC(controlNumber){
+  let isAdmin = (currentUserRole === 'admin');
+  try{ if(!isAdmin && (localStorage.getItem(AUTH_ROLE_KEY) === 'admin')) isAdmin = true; }catch(e){}
+  if(!isAdmin){ alert('Only admin can return documents to IC.'); return; }
+  const doc = docs.find(d => d.controlNumber === controlNumber);
+  if(!doc){ alert('Document not found'); return; }
+  doc.adminStatus = 'Returned';
+  doc.returnedAt = Date.now();
+  try{ doc.returnedBy = localStorage.getItem(AUTH_KEY) || ''; }catch(e){ doc.returnedBy = ''; }
+  doc.forwarded = false;
+  doc.updatedAt = Date.now();
+  saveDocs();
+  renderDocs();
+  try{ renderAdminInbox(); }catch(e){}
+} 
 
 function showDashboard(userName){
   // remove centered login if present
@@ -813,12 +857,23 @@ docsTableBody.addEventListener('click', e => {
     let isAdmin = (currentUserRole === 'admin');
     try{ if(!isAdmin && (localStorage.getItem(AUTH_ROLE_KEY) === 'admin')) isAdmin = true; }catch(e){}
     if(!isAdmin){ alert('Only admin may receive forwarded documents.'); return; }
-    if(confirm(`Mark document ${ctrl} as received?`)){
+    if(confirm(`Mark document ${ctrl} as received (Admin Status)?`)){
       receiveDoc(ctrl);
     }
     return;
   }
-
+  const retBtn = e.target.closest('button[data-return]');
+  if(retBtn){
+    const ctrl = retBtn.getAttribute('data-return');
+    let isAdmin = (currentUserRole === 'admin');
+    try{ if(!isAdmin && (localStorage.getItem(AUTH_ROLE_KEY) === 'admin')) isAdmin = true; }catch(e){}
+    if(!isAdmin){ alert('Only admin may return documents to IC.'); return; }
+    if(confirm(`Return document ${ctrl} to IC (Returned)?`)){
+      returnToIC(ctrl);
+      renderDocs();
+    }
+    return;
+  }
   const del = e.target.closest('button[data-delete]');
   if(del){
     const ctrl = del.getAttribute('data-delete');
@@ -1107,10 +1162,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const rec = ev.target.closest('button[data-receive]');
       if(rec){
         const ctl = rec.getAttribute('data-receive');
-        if(confirm(`Mark document ${ctl} as received?`)){
+        if(confirm(`Mark document ${ctl} as received (Admin Status)?`)){
           receiveDoc(ctl);
           renderAdminInbox();
         }
+        return;
+      }
+      const ret = ev.target.closest('button[data-return]');
+      if(ret){
+        const ctl = ret.getAttribute('data-return');
+        if(confirm(`Return document ${ctl} to IC (Returned)?`)){
+          returnToIC(ctl);
+          renderAdminInbox();
+        }
+        return;
       }
     });
   }
@@ -1419,8 +1484,8 @@ bulkUpdateBtn && bulkUpdateBtn.addEventListener('click', () => {
     alert('No documents selected.');
     return;
   }
-  const newStatus = prompt('Enter new status for selected documents (Revision, Routing, Approved, Rejected, Received):');
-  if(newStatus && ['Revision', 'Routing', 'Approved', 'Rejected', 'Received'].includes(newStatus)){
+  const newStatus = prompt('Enter new status for selected documents (Revision, Routing, Approved, Rejected, Admin Status):');
+  if(newStatus && ['Revision', 'Routing', 'Approved', 'Rejected', 'Admin Status'].includes(newStatus)){
     selected.forEach(controlNumber => {
       const doc = docs.find(d => d.controlNumber === controlNumber);
       if(doc){
