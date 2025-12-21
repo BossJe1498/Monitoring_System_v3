@@ -20,21 +20,7 @@
     </header>
 
     <main>
-      <!-- Keep login-section and dashboard IDs so app.js can initialize here as well -->
-      <section id="login-section" class="card">
-        <h2>Login</h2>
-        <form id="login-form">
-          <label for="username">Username</label>
-          <input id="username" name="username" required />
-
-          <label for="password">Password</label>
-          <input id="password" name="password" type="password" required />
-
-          <button type="submit">Sign In</button>
-        </form>
-        <p class="muted">Default demo credentials: <code>admin</code> / <code>password</code></p>
-      </section>
-
+      <!-- Admin-only inbox page. If not signed in as admin, users are redirected to the main dashboard. -->
       <section id="dashboard" class="hidden">
         <div style="max-width:980px;margin:18px auto;padding:0 16px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -87,7 +73,7 @@
             <option>Routing</option>
             <option>Approved</option>
             <option>Rejected</option>
-            <option>Received</option>
+            <option>Admin Status</option>
           </select>
           <label>WINS Status</label>
           <select id="modal-wins" name="winsStatus">
@@ -110,11 +96,24 @@
     </div>
 
     <script>
-      // Optionally allow non-admin to land here and sign in -- keep UX simple.
-      // Provide a refresh action to re-render inbox (useful after sign-in)
+      // Admin-only landing: redirect non-admins back to the main dashboard and show inbox for admins
       document.addEventListener('DOMContentLoaded', () => {
+        const role = localStorage.getItem('dms_auth_role_v1');
+        const user = localStorage.getItem('dms_auth_v1');
+        if(role !== 'admin'){
+          alert('Admin access required. Redirecting to Dashboard.');
+          window.location.href = 'index.html';
+          return;
+        }
+        // show dashboard immediately
+        const dash = document.getElementById('dashboard'); if(dash) dash.classList.remove('hidden');
+        const ui = document.getElementById('user-info'); if(ui) ui.classList.remove('hidden');
+        const uname = document.getElementById('username-display'); if(uname) uname.textContent = user || '';
+        // wire refresh
         const btn = document.getElementById('refresh-inbox');
         if(btn) btn.addEventListener('click', () => { try{ window.renderAdminInbox && window.renderAdminInbox(); }catch(e){} });
+        // render inbox once app is ready
+        setTimeout(() => { try{ window.renderAdminInbox && window.renderAdminInbox(); }catch(e){} }, 100);
       });
     </script>
 
