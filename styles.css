@@ -136,6 +136,20 @@ footer{max-width:980px;margin:6px auto;padding:6px 16px;color:var(--muted)}
 /* Total documents display */
 .total-docs-display{font-size:48px;font-weight:700;text-align:center;color:var(--accent);padding:20px 0}
 
+/* Centered overview area (Status / WINS / Admin Status / Age) */
+.center-overviews{max-width:980px;margin:18px auto;padding:12px}
+.overviews-grid{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.overview-card{flex:1 1 240px;max-width:480px;min-width:220px;padding:12px;border-radius:8px;background:var(--card);box-shadow:0 1px 3px rgba(6,212,212,0.04)}
+.overview-card h3{margin-top:0;margin-bottom:8px}
+
+/* Full documents view: fit to window */
+body.full-view main{min-height:calc(100vh - 120px)}
+.full-results{max-height:calc(100vh - 260px);overflow:auto}
+
+/* Ensure charts expand to card width */
+#status-chart, #wins-chart, #age-overview, #admin-status-overview{width:100%}
+
+
 /* Notes cell: truncate long notes and provide tooltip */
 .notes-cell{max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .notes-cell .notes-text{display:inline-block;vertical-align:middle;max-width:160px;overflow:hidden;text-overflow:ellipsis}
