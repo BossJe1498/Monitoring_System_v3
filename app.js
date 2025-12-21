@@ -163,7 +163,10 @@ function renderDocs(filter){
   renderTotalDocs();
   renderStatusChart();
   renderWinsChart();
-  renderAgeOverview();  renderLeftSidebar();}
+  renderAgeOverview();
+  // admin status overview (right side)
+  try{ renderAdminStatusChart(); }catch(e){}
+  renderLeftSidebar();}
 
 function computeWinsCounts(){
   const counts = { 'Approved':0, 'Pending for Approve':0, 'Rejected':0 };
@@ -376,8 +379,10 @@ function renderAdminInbox(){
     list = list.filter(d => d.forwarded);
   } else if(filter === 'received'){
     list = list.filter(d => d.status === 'Received');
+  } else if(filter === 'returned'){
+    list = list.filter(d => d.status === 'Return to IC');
   } else if(filter === 'all'){
-    list = list.filter(d => d.forwarded || d.status === 'Received');
+    list = list.filter(d => d.forwarded || d.status === 'Received' || d.status === 'Return to IC');
   }
   if(adminInboxQuery){
     list = list.filter(d => ((d.controlNumber||'') + ' ' + (d.title||'') + ' ' + (d.owner||'')).toLowerCase().includes(adminInboxQuery));
@@ -405,6 +410,8 @@ function renderAdminInbox(){
     if(d.forwarded){
       const rec = document.createElement('button'); rec.type = 'button'; rec.className = 'receive'; rec.textContent = '✔️ Receive'; rec.setAttribute('data-receive', d.controlNumber); rec.style.marginLeft = '6px';
       actions.appendChild(rec);
+      const ret = document.createElement('button'); ret.type = 'button'; ret.className = 'open-new-tab'; ret.textContent = '↩ Return to IC'; ret.setAttribute('data-return', d.controlNumber); ret.style.marginLeft = '6px';
+      actions.appendChild(ret);
     }
     li.appendChild(left);
     li.appendChild(actions);
@@ -470,6 +477,61 @@ function renderStatusChart(){
     btn.addEventListener('click', () => {
       if(s.key === statusFilter) setStatusFilter(null);
       else setStatusFilter(s.key);
+    });
+    row.appendChild(label);
+    row.appendChild(count);
+    row.appendChild(bar);
+    row.appendChild(btn);
+    container.appendChild(row);
+  });
+}
+
+// Admin status counts (Forwarded / Received / Return to IC)
+function computeAdminStatusCounts(){
+  const counts = { 'Forwarded':0, 'Received':0, 'Return to IC':0 };
+  docs.forEach(d => {
+    if(d.forwarded) counts['Forwarded']++;
+    if(d.status === 'Received') counts['Received']++;
+    if(d.status === 'Return to IC') counts['Return to IC']++;
+  });
+  return counts;
+}
+
+function renderAdminStatusChart(){
+  const container = document.getElementById('admin-status-chart');
+  if(!container) return;
+  // only show for admin users
+  try{ const role = currentUserRole || localStorage.getItem(AUTH_ROLE_KEY) || null; if(role !== 'admin'){ container.innerHTML = ''; return; } }catch(e){ container.innerHTML = ''; return; }
+  container.innerHTML = '';
+  const counts = computeAdminStatusCounts();
+  const statuses = [
+    { key: 'Forwarded', cls: 'admin-forwarded' },
+    { key: 'Received', cls: 'admin-received' },
+    { key: 'Return to IC', cls: 'admin-return' }
+  ];
+  const total = statuses.reduce((a,s) => a + (counts[s.key] || 0), 0) || 1;
+  statuses.forEach(s => {
+    const row = document.createElement('div');
+    row.className = 'status-row admin-status-row ' + (s.key === statusFilter ? 'selected' : '');
+    const label = document.createElement('div'); label.className = 'status-label'; label.textContent = s.key;
+    const count = document.createElement('div'); count.className = 'status-count'; count.textContent = counts[s.key] || 0;
+    const bar = document.createElement('div'); bar.className = 'status-bar ' + s.cls;
+    const inner = document.createElement('div'); inner.className = 'status-bar-inner';
+    const pct = Math.round(((counts[s.key] || 0) / total) * 100);
+    inner.style.width = pct + '%';
+    bar.appendChild(inner);
+    const btn = document.createElement('button'); btn.textContent = 'Open';
+    btn.addEventListener('click', () => {
+      // Open admin views: forwarded -> admin inbox, others -> set status filter
+      if(s.key === 'Forwarded'){
+        adminInboxFilter = 'forwarded';
+        adminInboxPage = 1;
+        renderAdminInbox();
+      } else if(s.key === 'Received'){
+        setStatusFilter('Received');
+      } else if(s.key === 'Return to IC'){
+        setStatusFilter('Return to IC');
+      }
     });
     row.appendChild(label);
     row.appendChild(count);
@@ -549,6 +611,23 @@ function receiveDoc(controlNumber){
   saveDocs();
   renderDocs();
   // refresh admin inbox view as well
+  try{ renderAdminInbox(); }catch(e){}
+}
+
+// Admin: return forwarded document to originating IC (set status 'Return to IC')
+function returnToIC(controlNumber){
+  let isAdmin = (currentUserRole === 'admin');
+  try{ if(!isAdmin && (localStorage.getItem(AUTH_ROLE_KEY) === 'admin')) isAdmin = true; }catch(e){}
+  if(!isAdmin){ alert('Only admin can perform this action.'); return; }
+  const doc = docs.find(d => d.controlNumber === controlNumber);
+  if(!doc){ alert('Document not found'); return; }
+  doc.forwarded = false;
+  doc.forwardedHandledAt = Date.now();
+  try{ doc.forwardedHandledBy = localStorage.getItem(AUTH_KEY) || ''; }catch(e){ doc.forwardedHandledBy = ''; }
+  doc.status = 'Return to IC';
+  doc.updatedAt = Date.now();
+  saveDocs();
+  renderDocs();
   try{ renderAdminInbox(); }catch(e){}
 } 
 
@@ -1096,8 +1175,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const adminFilter = document.getElementById('admin-inbox-filter');
   const adminSearch = document.getElementById('admin-inbox-search');
   const adminPagination = document.getElementById('admin-inbox-pagination');
+  const clearAdminStatusBtn = document.getElementById('clear-admin-status');
   if(adminFilter){ adminFilter.addEventListener('change', () => { adminInboxFilter = adminFilter.value; adminInboxPage = 1; renderAdminInbox(); }); }
   if(adminSearch){ adminSearch.addEventListener('input', debounce(() => { adminInboxQuery = adminSearch.value.trim(); adminInboxPage = 1; renderAdminInbox(); }, 250)); }
+  if(clearAdminStatusBtn){ clearAdminStatusBtn.addEventListener('click', () => { adminInboxFilter = 'forwarded'; adminInboxPage = 1; setStatusFilter(null); renderAdminInbox(); renderDocs(); }); }
 
   // delegate clicks inside admin inbox (receive)
   const adminList = document.getElementById('admin-inbox-list');
@@ -1110,6 +1191,16 @@ document.addEventListener('DOMContentLoaded', () => {
           receiveDoc(ctl);
           renderAdminInbox();
         }
+        return;
+      }
+      const ret = ev.target.closest('button[data-return]');
+      if(ret){
+        const ctl = ret.getAttribute('data-return');
+        if(confirm(`Return document ${ctl} to IC?`)){
+          returnToIC(ctl);
+          renderAdminInbox();
+        }
+        return;
       }
     });
   }
