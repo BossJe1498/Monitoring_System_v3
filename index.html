@@ -113,6 +113,7 @@
 						<select id="admin-inbox-filter">
 							<option value="forwarded">Forwarded</option>
 							<option value="received">Received</option>
+							<option value="returned">Return to IC</option>
 							<option value="all">All</option>
 						</select>
 						<input id="admin-inbox-search" placeholder="Search inbox..." style="flex:1;padding:6px;border:1px solid #e6eef8;border-radius:6px" />
@@ -153,6 +154,13 @@
 				<div id="status-chart" aria-hidden="false"></div>
 				<div style="margin-top:10px;">
 					<button id="clear-status-filter">Clear Filter</button>
+				</div>
+
+				<hr />
+				<h3>Admin Status Overview</h3>
+				<div id="admin-status-chart" aria-hidden="false"></div>
+				<div style="margin-top:10px;">
+					<button id="clear-admin-status">Clear Admin Filter</button>
 				</div>
 
 				<hr />
