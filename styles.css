@@ -24,9 +24,9 @@ button{background: linear-gradient(45deg, var(--accent), #4a90e2); color:#f4f7f8
 button:hover{background: linear-gradient(45deg, #4a90e2, var(--accent)); transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2);}
 button[disabled]{opacity:0.6;cursor:default}
 .muted{color:var(--muted);font-size:13px}
-.controls{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.controls{display:flex;justify-content:space-between;align-items:center;margin:0 auto 10px;width:100%;max-width:900px} 
 .controls .right{display:flex;gap:8px;align-items:center}
-#docs-table{width:100%;border-collapse:collapse ; margin-right: auto; table-layout: auto;}
+#docs-table{width:100%;border-collapse:collapse ; margin:0 auto; table-layout: auto; min-width:760px}
 #docs-table th, #docs-table td{padding:8px;border-bottom:1px solid #eef2f6;text-align:left}
 #docs-table th{background:#fbfdff;font-weight:600; position: sticky; top: 0; z-index: 1;}
 .form-actions{display:flex;gap:8px}
@@ -43,7 +43,9 @@ footer{max-width:980px;margin:6px auto;padding:6px 16px;color:var(--muted)}
 /* Layout with sidebar */
 .layout{display:flex;gap:16px;max-width:1200px;margin:18px auto;position:relative;align-items:flex-start;flex-wrap:nowrap;padding:0 12px}
 .left-sidebar{width:260px;flex:0 0 260px;max-height:calc(100vh - 140px);overflow:auto;padding:12px}
-.main-column{flex:1;min-width:0}
+.main-column{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:12px}
+/* Ensure cards inside main column are constrained and centered */
+.main-column .card{width:100%;max-width:900px}
 #sidebar{width:280px;flex:0 0 280px} 
 
 /* Admin Status Overview styles */
