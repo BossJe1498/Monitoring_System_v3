@@ -435,7 +435,7 @@ function renderTotalDocs(){
 }
 
 function computeStatusCounts(){
-  const counts = { 'Revision':0, 'Routing':0, 'Approved':0, 'Rejected':0, 'Received':0 };
+  const counts = { 'Revision':0, 'Routing':0, 'Approved':0, 'Rejected':0 };
   docs.forEach(d => {
     const s = d.status || 'Revision';
     if(!(s in counts)) counts[s] = 0;
@@ -449,14 +449,13 @@ function renderStatusChart(){
   if(!container) return;
   container.innerHTML = '';
   const counts = computeStatusCounts();
-  const total = Object.values(counts).reduce((a,b) => a + b, 0) || 1;
   const statuses = [
     { key: 'Revision', cls: 'status-revision' },
     { key: 'Routing', cls: 'status-routing' },
     { key: 'Approved', cls: 'status-approved' },
-    { key: 'Rejected', cls: 'status-rejected' },
-    { key: 'Received', cls: 'status-received' }
+    { key: 'Rejected', cls: 'status-rejected' }
   ];
+  const total = statuses.reduce((a,s) => a + (counts[s.key] || 0), 0) || 1;
   statuses.forEach(s => {
     const row = document.createElement('div');
     row.className = 'status-row ' + (s.key === statusFilter ? 'selected' : '');
@@ -1419,8 +1418,8 @@ bulkUpdateBtn && bulkUpdateBtn.addEventListener('click', () => {
     alert('No documents selected.');
     return;
   }
-  const newStatus = prompt('Enter new status for selected documents (Revision, Routing, Approved, Rejected, Received):');
-  if(newStatus && ['Revision', 'Routing', 'Approved', 'Rejected', 'Received'].includes(newStatus)){
+  const newStatus = prompt('Enter new status for selected documents (Revision, Routing, Approved, Rejected):');
+  if(newStatus && ['Revision', 'Routing', 'Approved', 'Rejected'].includes(newStatus)){
     selected.forEach(controlNumber => {
       const doc = docs.find(d => d.controlNumber === controlNumber);
       if(doc){
