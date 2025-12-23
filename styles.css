@@ -144,7 +144,7 @@ footer{max-width:980px;margin:6px auto;padding:6px 16px;color:var(--muted)}
 
 /* Full documents view: fit to window */
 body.full-view main{min-height:calc(100vh - 220px)}
-.full-results{width:100%;overflow:auto}
+.full-results{width:100%}
 
 /* Ensure charts expand to card width */
 #status-chart, #wins-chart, #age-overview, #admin-status-overview{width:100%}
