@@ -5,7 +5,9 @@
   --muted:#666;
 }
 *{box-sizing:border-box}
-html,body{height:100%}
+html,body{height:100%;
+  box-sizing: border-box;
+}
 
 body{font-family:Segoe UI,Roboto,Arial, sans-serif;background:url(BG2.jpg); background-repeat: no-repeat ; background-size:cover; background-blend-mode: hard-light ; background-color:transparent; }
 header{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:linear-gradient(90deg,#fff, #f9fbfd);border-bottom:1px solid #e6e9ee}
