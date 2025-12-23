@@ -143,7 +143,7 @@ footer{max-width:980px;margin:6px auto;padding:6px 16px;color:var(--muted)}
 .overview-card h3{margin-top:0;margin-bottom:8px}
 
 /* Full documents view: fit to window */
-body.full-view main{min-height:calc(100vh - 120px)}
+body.full-view main{min-height:calc(100vh - 220px)}
 .full-results{max-height:calc(100vh - 260px);overflow:auto}
 
 /* Ensure charts expand to card width */
