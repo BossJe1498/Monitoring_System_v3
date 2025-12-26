@@ -44,28 +44,17 @@
 
 
 		<main>
-
-			<button onclick="document.getElementById('login-section').style.display='block'">Login</button>
 			<!-- Login Form -->
-			<section id="login-section" class="modal">
+			<section id="login-section" class="card">
 				<h2>Login</h2>
-
-				<form id="modal-content animate"> 
-					
-    				<div class="container">
-
+				<form id="login-form">
 					<label for="username">Username</label>
-					<input id="username" placeholder="Enter Username" name="username" required />
+					<input id="username" name="username" required />
 
 					<label for="password">Password</label>
-					<input id="password" placeholder="Enter Password" name="password" type="password" required />
-
-					<div class="container" style="background-color:#ad2f2f"></div>
+					<input id="password" name="password" type="password" required />
 
 					<button type="submit">Sign In</button>
-						
-					<button type="button" onclick="document.getElementById('login-section').style.display='none'" class="cancelbtn">Cancel</button>
-                    ></div>			
 				</form>
 				<p class="muted">Default demo credentials: <code>admin</code> / <code>password</code></p>
 			</section>
@@ -202,6 +191,25 @@
 		</main>
 
 		<footer>
+
+				<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+				<!-- Add font awesome icons to buttons  -->
+				<p>Icon buttons:</p>
+				<button class="btn"><i class="fa fa-home"></i></button>
+				<button class="btn"><i class="fa fa-bars"></i></button>
+				<button class="btn"><i class="fa fa-trash"></i></button>
+				<button class="btn"><i class="fa fa-close"></i></button>
+				<button class="btn"><i class="fa fa-folder"></i></button>
+
+				<p>Icon buttons with text:</p>
+				<button class="btn"><i class="fa fa-home"></i> Home</button>
+				<button class="btn"><i class="fa fa-bars"></i> Menu</button>
+				<button class="btn"><i class="fa fa-trash"></i> Trash</button>
+				<button class="btn"><i class="fa fa-close"></i> Close</button>
+				<button class="btn"><i class="fa fa-folder"></i> Folder</button>
+
+
 			<small>Local demo — data stored in your browser. <br>
 			j.hutalla.</small>
 		</footer>
