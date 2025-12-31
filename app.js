@@ -3,6 +3,7 @@
 
 const STORAGE_KEY = 'dms_docs_v1';
 const USERS_STORAGE_KEY = 'dms_users_v1';
+const RECYCLE_STORAGE_KEY = 'dms_recycle_v1';
 // Basic demo users and roles
 const USERS = {
   admin: { password: 'password', role: 'admin' },
@@ -576,6 +577,29 @@ function setAdminInboxFilter(f){
 }
 window.setAdminInboxFilter = setAdminInboxFilter;
 
+// Render recycle bin view (for recycle_bin.html)
+function renderRecycleBin(){
+  const container = document.getElementById('recycle-list');
+  if(!container) return;
+  const rb = loadRecycle();
+  container.innerHTML = '';
+  if(!rb || rb.length === 0){ container.innerHTML = '<div class="muted">Recycle bin is empty.</div>'; return; }
+  const ul = document.createElement('ul'); ul.className = 'approved-ul';
+  rb.forEach(d => {
+    const li = document.createElement('li');
+    const left = document.createElement('div'); left.style.flex = '1';
+    left.innerHTML = `<strong>${escapeHtml(d.controlNumber||d.control)}</strong> — ${escapeHtml(d.title||'')} <div class="muted" style="font-size:12px">Deleted: ${d.deletedAt? new Date(Number(d.deletedAt)).toLocaleString():''}</div>`;
+    const actions = document.createElement('div');
+    const restore = document.createElement('button'); restore.type='button'; restore.className='icon-btn'; restore.title='Restore'; restore.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>';
+    restore.addEventListener('click', () => { if(restoreFromRecycle(d.controlNumber||d.control)){ renderRecycleBin(); alert('Restored.'); } });
+    const purge = document.createElement('button'); purge.type='button'; purge.className='icon-btn'; purge.title='Delete permanently'; purge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>';
+    purge.addEventListener('click', () => { if(confirm('Permanently delete this item?')){ purgeFromRecycle(d.controlNumber||d.control); renderRecycleBin(); } });
+    actions.appendChild(restore); actions.appendChild(purge);
+    li.appendChild(left); li.appendChild(actions); li.style.display='flex'; li.style.alignItems='center'; li.style.justifyContent='space-between'; ul.appendChild(li);
+  });
+  container.appendChild(ul);
+}
+
 const clearAgeFilterBtn = document.getElementById('clear-age-filter');
 clearAgeFilterBtn && clearAgeFilterBtn.addEventListener('click', () => { setAgeStatusFilter(null); });
 
@@ -724,14 +748,49 @@ function addOrUpdateDoc(doc){
 }
 
 function deleteDocInternal(controlNumber){
-  docs = docs.filter(d => d.controlNumber !== controlNumber);
+  // soft-delete: move to recycle bin
+  const idx = docs.findIndex(d => d.controlNumber === controlNumber);
+  if(idx === -1) return;
+  const removed = docs.splice(idx,1)[0];
   saveDocs();
+  try{
+    const rb = loadRecycle();
+    rb.unshift(Object.assign({}, removed, { deletedAt: Date.now() }));
+    saveRecycle(rb);
+  }catch(e){ }
 }
 
 function deleteDoc(controlNumber){
-  // Allow deletion by any authenticated role (user or admin)
+  // Soft-delete: move document to recycle bin (allow restore)
   deleteDocInternal(controlNumber);
 } 
+
+// Recycle bin helpers
+function loadRecycle(){
+  try{ return JSON.parse(localStorage.getItem(RECYCLE_STORAGE_KEY) || '[]'); }catch(e){ return []; }
+}
+function saveRecycle(arr){
+  try{ localStorage.setItem(RECYCLE_STORAGE_KEY, JSON.stringify(arr)); }catch(e){}
+}
+function restoreFromRecycle(controlNumber){
+  const rb = loadRecycle();
+  const idx = rb.findIndex(d => d.controlNumber === controlNumber);
+  if(idx === -1) return false;
+  const doc = rb.splice(idx,1)[0];
+  // remove deletedAt before restoring
+  delete doc.deletedAt;
+  docs.unshift(doc);
+  saveDocs();
+  saveRecycle(rb);
+  renderDocs();
+  try{ renderAdminInbox(); }catch(e){}
+  return true;
+}
+function purgeFromRecycle(controlNumber){
+  let rb = loadRecycle();
+  rb = rb.filter(d => d.controlNumber !== controlNumber);
+  saveRecycle(rb);
+}
 
 // Forward document to admin (user action)
 function forwardDoc(controlNumber){
