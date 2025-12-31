@@ -11,6 +11,16 @@ const USERS = {
 const AUTH_KEY = 'dms_auth_v1';
 const AUTH_ROLE_KEY = 'dms_auth_role_v1';
 let currentUserRole = null;
+// Optional server API for shared DB
+const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? (location.protocol + '//' + location.hostname + ':3000/api') : (location.protocol + '//' + location.hostname + '/api');
+let USE_SERVER = false;
+
+// probe server once
+(function(){
+  try{
+    fetch(API_BASE.replace('/api','') + '/api/ping').then(r => { if(r.ok){ USE_SERVER = true; } }).catch(()=>{});
+  }catch(e){}
+})();
 
 // Elements
 const loginSection = document.getElementById('login-section');
@@ -89,6 +99,10 @@ function stopInactivityWatcher(){
 }
 
 function loadDocs(){
+  if(USE_SERVER){
+    // fetch docs from server (async but keep previous docs if any)
+    fetch(API_BASE + '/docs').then(r => r.json()).then(j => { if(j && Array.isArray(j.docs)){ docs = j.docs; renderDocs(); updateAdminInboxBadge(); } }).catch(()=>{});
+  }
   try{ docs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
   catch(e){ docs = []; }
   // migrate legacy 'Received' status: preserve as adminStatus and set a sane status value
@@ -104,6 +118,9 @@ function loadDocs(){
 
 function saveDocs(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(docs));
+  if(USE_SERVER){
+    try{ fetch(API_BASE + '/docs', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ docs }) }).catch(()=>{}); }catch(e){}
+  }
 }
 
 function renderDocs(filter){
@@ -660,6 +677,19 @@ function receiveDoc(controlNumber){
 
 // Auth
 function signIn(username, password){
+  // Try server auth first
+  if(USE_SERVER){
+    try{
+      return fetch(API_BASE + '/auth/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ username, password }) }).then(r => {
+        if(!r.ok) return null;
+        return r.json().then(j => {
+          try{ localStorage.setItem(AUTH_KEY, j.username || username); localStorage.setItem(AUTH_ROLE_KEY, j.role || 'user'); }catch(e){}
+          return j.role || 'user';
+        }).catch(()=>null);
+      }).catch(()=>null);
+    }catch(e){/* fallthrough */}
+  }
+  // Fallback to local demo users
   const u = USERS[username];
   if(u && u.password === password) return u.role;
   return null;
@@ -749,15 +779,18 @@ loginForm.addEventListener('submit', e => {
   e.preventDefault();
   const u = document.getElementById('username').value.trim();
   const p = document.getElementById('password').value;
-  const role = signIn(u,p);
-  if(role){
-    // persist login so refresh doesn't return to the login form
-    try{ localStorage.setItem(AUTH_KEY, u); localStorage.setItem(AUTH_ROLE_KEY, role); }catch(e){}
-    showDashboard(u);
-    currentUserRole = role;
-    adjustUIForRole();
+  const maybe = signIn(u,p);
+  if(maybe && typeof maybe.then === 'function'){
+    maybe.then(role => {
+      if(role){ try{ localStorage.setItem(AUTH_KEY, u); localStorage.setItem(AUTH_ROLE_KEY, role); }catch(e){}
+        showDashboard(u); currentUserRole = role; adjustUIForRole();
+      } else { alert('Invalid credentials'); }
+    }).catch(() => { alert('Invalid credentials'); });
   } else {
-    alert('Invalid credentials');
+    const role = maybe;
+    if(role){ try{ localStorage.setItem(AUTH_KEY, u); localStorage.setItem(AUTH_ROLE_KEY, role); }catch(e){}
+      showDashboard(u); currentUserRole = role; adjustUIForRole();
+    } else { alert('Invalid credentials'); }
   }
 });
 
