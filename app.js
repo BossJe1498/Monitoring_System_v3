@@ -2,6 +2,7 @@
 // Stores documents in localStorage under key 'dms_docs'
 
 const STORAGE_KEY = 'dms_docs_v1';
+const USERS_STORAGE_KEY = 'dms_users_v1';
 // Basic demo users and roles
 const USERS = {
   admin: { password: 'password', role: 'admin' },
@@ -10,6 +11,7 @@ const USERS = {
 // Key used to persist authenticated user across refreshes
 const AUTH_KEY = 'dms_auth_v1';
 const AUTH_ROLE_KEY = 'dms_auth_role_v1';
+const AUTH_TOKEN_KEY = 'dms_auth_token_v1';
 let currentUserRole = null;
 // Optional server API for shared DB
 const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? (location.protocol + '//' + location.hostname + ':3000/api') : (location.protocol + '//' + location.hostname + '/api');
@@ -709,16 +711,39 @@ function signIn(username, password){
       return fetch(API_BASE + '/auth/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ username, password }) }).then(r => {
         if(!r.ok) return null;
         return r.json().then(j => {
-          try{ localStorage.setItem(AUTH_KEY, j.username || username); localStorage.setItem(AUTH_ROLE_KEY, j.role || 'user'); }catch(e){}
+            try{ localStorage.setItem(AUTH_KEY, j.username || username); localStorage.setItem(AUTH_ROLE_KEY, j.role || 'user'); if(j.token) localStorage.setItem(AUTH_TOKEN_KEY, j.token); }catch(e){}
           return j.role || 'user';
         }).catch(()=>null);
       }).catch(()=>null);
     }catch(e){/* fallthrough */}
   }
   // Fallback to local demo users
+  // check persisted users first
+  try{
+    const stored = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '{}');
+    if(stored && stored[username] && stored[username].password === password){
+      return stored[username].role || 'user';
+    }
+  }catch(e){}
   const u = USERS[username];
   if(u && u.password === password) return u.role;
   return null;
+}
+
+// Users persistence helpers (client-side demo)
+function loadUsers(){
+  try{ return JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '{}'); }catch(e){ return {}; }
+}
+function saveUsers(obj){
+  try{ localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(obj)); }catch(e){}
+}
+function registerUser(username, password, role){
+  if(!username || !password) return { ok:false, error:'username and password required' };
+  const users = loadUsers();
+  if(users[username]) return { ok:false, error:'username already exists' };
+  users[username] = { password, role: role || 'user', createdAt: Date.now() };
+  saveUsers(users);
+  return { ok:true };
 }
 
 // Admin action: return document to originator (IC)
@@ -765,7 +790,7 @@ function signOut(){
   try{ document.body.classList.add('no-navbar'); }catch(e){}
   usernameDisplay.textContent = '';
   currentUserRole = null;
-  try{ localStorage.removeItem(AUTH_KEY); localStorage.removeItem(AUTH_ROLE_KEY); }catch(e){}
+  try{ localStorage.removeItem(AUTH_KEY); localStorage.removeItem(AUTH_ROLE_KEY); localStorage.removeItem(AUTH_TOKEN_KEY); }catch(e){}
   stopInactivityWatcher();
   try{ announceStatus('Signed out'); }catch(e){}
 }
@@ -796,6 +821,10 @@ function adjustUIForRole(){
   const adminInboxPageBtn = document.getElementById('admin-inbox-page-btn');
   if(adminInboxPageBtn) adminInboxPageBtn.style.display = isAdmin ? '' : 'none';
 
+  // Admin-only: show users dashboard link
+  const usersDashboardBtn = document.getElementById('users-dashboard-page-btn');
+  if(usersDashboardBtn) usersDashboardBtn.style.display = isAdmin ? '' : 'none';
+
   // Re-render docs so per-row actions reflect role
   try{ renderDocs(searchInput.value.trim()); }catch(e){}
 }
@@ -819,6 +848,57 @@ loginForm.addEventListener('submit', e => {
     } else { alert('Invalid credentials'); }
   }
 });
+
+// Registration form handling
+const showRegisterBtn = document.getElementById('show-register');
+const registerForm = document.getElementById('register-form');
+const cancelRegisterBtn = document.getElementById('cancel-register');
+if(showRegisterBtn && registerForm){
+  showRegisterBtn.addEventListener('click', (ev) => { registerForm.classList.remove('hidden'); showRegisterBtn.classList.add('hidden'); });
+}
+if(cancelRegisterBtn && registerForm){
+  cancelRegisterBtn.addEventListener('click', (ev) => { registerForm.classList.add('hidden'); showRegisterBtn.classList.remove('hidden'); registerForm.reset(); });
+}
+if(registerForm){
+  registerForm.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const u = (document.getElementById('reg-username') || {}).value && document.getElementById('reg-username').value.trim();
+    const p = (document.getElementById('reg-password') || {}).value;
+    const pc = (document.getElementById('reg-password-confirm') || {}).value;
+    const role = (document.getElementById('reg-role') || {}).value || 'user';
+    if(!u || !p){ alert('Username and password required'); return; }
+    if(p !== pc){ alert('Passwords do not match'); return; }
+    // Only allow creating admin if there is no admin yet or current session is admin
+    const users = loadUsers();
+    const hasAdmin = Object.keys(users).some(k => users[k].role === 'admin');
+    const currentRole = (localStorage.getItem(AUTH_ROLE_KEY) || null);
+    if(role === 'admin' && hasAdmin && currentRole !== 'admin'){
+      alert('Creating additional admin accounts is restricted.');
+      return;
+    }
+
+    // If server is available, attempt server-side registration first so accounts persist
+    if(USE_SERVER){
+      const token = localStorage.getItem(AUTH_TOKEN_KEY) || '';
+      fetch(API_BASE + '/auth/register', { method: 'POST', headers: { 'Content-Type':'application/json', 'Authorization': token ? ('Bearer ' + token) : '' }, body: JSON.stringify({ username: u, password: p, role }) }).then(r => {
+        if(!r.ok){ r.json().then(j => alert(j && j.error ? j.error : 'Registration failed on server')); return; }
+        r.json().then(j => {
+          // After server registration, sign in to receive session token
+          const maybe = signIn(u,p);
+          if(maybe && typeof maybe.then === 'function'){
+            maybe.then(role2 => { if(role2){ try{ localStorage.setItem(AUTH_KEY, u); localStorage.setItem(AUTH_ROLE_KEY, role2); }catch(e){} showDashboard(u); currentUserRole = role2; adjustUIForRole(); } else alert('Registration succeeded but login failed'); });
+          } else if(maybe){ try{ localStorage.setItem(AUTH_KEY, u); localStorage.setItem(AUTH_ROLE_KEY, maybe); }catch(e){} showDashboard(u); currentUserRole = maybe; adjustUIForRole(); }
+        }).catch(()=>{ alert('Registration succeeded but unexpected server response'); });
+      }).catch(()=>{ alert('Registration failed (network)'); });
+      return;
+    }
+
+    const res = registerUser(u,p,role);
+    if(!res.ok){ alert(res.error || 'Unable to register'); return; }
+    try{ localStorage.setItem(AUTH_KEY, u); localStorage.setItem(AUTH_ROLE_KEY, role); }catch(e){}
+    showDashboard(u); currentUserRole = role; adjustUIForRole();
+  });
+}
 
 if(logoutBtn) logoutBtn.addEventListener('click', () => {
   signOut();
