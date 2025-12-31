@@ -118,6 +118,31 @@ function resetInactivityTimer(){
     }
   }, INACTIVITY_MS);
 }
+// Toast / Undo helpers
+let _lastDeletedControl = null;
+let _lastDeletedTimer = null;
+function showToast(message, opts){
+  try{
+    // ensure single container
+    let wrap = document.querySelector('.toast-wrap');
+    if(!wrap){ wrap = document.createElement('div'); wrap.className = 'toast-wrap'; document.body.appendChild(wrap); }
+    wrap.innerHTML = '';
+    const t = document.createElement('div'); t.className = 'toast';
+    const msg = document.createElement('div'); msg.className = 'toast-msg'; msg.textContent = message || '';
+    const act = document.createElement('button'); act.className = 'toast-action'; act.type='button'; act.textContent = (opts && opts.actionLabel) ? opts.actionLabel : 'Undo';
+    act.addEventListener('click', () => {
+      try{ if(opts && typeof opts.onAction === 'function') opts.onAction(); }catch(e){}
+      hideToast();
+    });
+    const close = document.createElement('button'); close.type='button'; close.className='toast-action'; close.style.color='#fff'; close.textContent='Close'; close.addEventListener('click', hideToast);
+    t.appendChild(msg); if(opts && opts.onAction) t.appendChild(act); t.appendChild(close);
+    wrap.appendChild(t);
+    // auto-hide
+    if(_lastDeletedTimer) clearTimeout(_lastDeletedTimer);
+    _lastDeletedTimer = setTimeout(()=>{ hideToast(); if(opts && typeof opts.onTimeout === 'function') opts.onTimeout(); }, (opts && opts.duration) ? opts.duration : 5000);
+  }catch(e){ }
+}
+function hideToast(){ try{ const wrap = document.querySelector('.toast-wrap'); if(wrap) wrap.innerHTML=''; if(_lastDeletedTimer){ clearTimeout(_lastDeletedTimer); _lastDeletedTimer = null; _lastDeletedControl = null;} }catch(e){} }
 function startInactivityWatcher(){
   resetInactivityTimer();
   ['mousemove','keydown','click','touchstart','scroll'].forEach(ev => window.addEventListener(ev, resetInactivityTimer));
@@ -760,6 +785,8 @@ function deleteDocInternal(controlNumber){
     const rb = loadRecycle();
     rb.unshift(Object.assign({}, removed, { deletedAt: Date.now() }));
     saveRecycle(rb);
+    // expose last deleted for undo
+    try{ _lastDeletedControl = removed.controlNumber; showToast('Document deleted', { onAction: ()=>{ restoreFromRecycle(_lastDeletedControl); _lastDeletedControl = null; }, onTimeout: ()=>{ _lastDeletedControl = null; }, actionLabel:'Undo', duration:5000 }); }catch(e){}
   }catch(e){ }
 }
 
