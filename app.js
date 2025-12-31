@@ -201,7 +201,7 @@ function renderDocs(filter){
     } else if(doc.adminStatus === 'Received'){
       adminStatusHtml = `<span class="admin-status-label">Received</span>`;
     } else if(doc.adminStatus === 'Returned'){
-      adminStatusHtml = `<span class="forwarded-label">Returned</span>`;
+      adminStatusHtml = `<button class="returned-icon" title="Returned" aria-label="Returned"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10v6a2 2 0 0 1-2 2H7"></path><polyline points="7 10 3 14 7 18"></polyline></svg></button>`;
     }
 
     tr.innerHTML = `
@@ -231,11 +231,11 @@ function renderDocs(filter){
       <td><span class="age ${ageClass}">${ageDays !== '' ? escapeHtml(ageDays) : ''}</span></td>
       <td class="admin-status-cell">${adminStatusHtml}</td>
       <td class="actions">
-        <button data-edit="${escapeHtml(doc.controlNumber)}" title="Edit">✏️</button>
-        ${!isAdmin && !doc.forwarded ? `<button data-forward="${escapeHtml(doc.controlNumber)}" class="forward" title="Forward to Admin">➡️</button>` : (!isAdmin && doc.forwarded ? `<span class="forwarded-label">Forwarded</span>` : '')}
-        ${isAdmin && doc.forwarded ? `<button data-receive="${escapeHtml(doc.controlNumber)}" class="receive" title="Forwarded by ${escapeHtml(doc.forwardedBy || '')} at ${doc.forwardedAt ? new Date(Number(doc.forwardedAt)).toLocaleString() : ''}">✔️ Receive</button>` : ''}
-        ${isAdmin && doc.adminStatus === 'Received' ? `<button data-return="${escapeHtml(doc.controlNumber)}" class="return" title="Return to IC">↩️ Return</button>` : (isAdmin && doc.adminStatus === 'Returned' ? `<span class="forwarded-label">Returned</span>` : '')}
-        <button data-delete="${escapeHtml(doc.controlNumber)}" class="delete" title="Delete">🗑️</button>
+        <button class="icon-btn" data-edit="${escapeHtml(doc.controlNumber)}" title="Edit" aria-label="Edit ${escapeHtml(doc.controlNumber)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg></button>
+        ${!isAdmin && !doc.forwarded ? `<button class="icon-btn forward" data-forward="${escapeHtml(doc.controlNumber)}" title="Forward to Admin" aria-label="Forward ${escapeHtml(doc.controlNumber)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>` : (!isAdmin && doc.forwarded ? `<span class="forwarded-label">Forwarded</span>` : '')}
+        ${isAdmin && doc.forwarded ? `<button class="icon-btn receive" data-receive="${escapeHtml(doc.controlNumber)}" title="Receive forwarded document" aria-label="Receive ${escapeHtml(doc.controlNumber)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>` : ''}
+        ${isAdmin && doc.adminStatus === 'Received' ? `<button class="icon-btn return" data-return="${escapeHtml(doc.controlNumber)}" title="Return to IC" aria-label="Return ${escapeHtml(doc.controlNumber)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 4 6 9 1"></polyline><path d="M20 22v-7a4 4 0 0 0-4-4H4"></path></svg></button>` : (isAdmin && doc.adminStatus === 'Returned' ? `<button class="returned-icon" title="Returned" aria-label="Returned"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10v6a2 2 0 0 1-2 2H7"></path><polyline points="7 10 3 14 7 18"></polyline></svg></button>` : '')}
+        <button class="icon-btn delete" data-delete="${escapeHtml(doc.controlNumber)}" title="Delete" aria-label="Delete ${escapeHtml(doc.controlNumber)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg></button>
       </td> 
     `;
     docsTableBody.appendChild(tr);
@@ -514,8 +514,9 @@ function renderAdminInbox(externalFilter){
       ret.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 4 6 9 1"></polyline><path d="M20 22v-7a4 4 0 0 0-4-4H4"></path></svg>';
       actions.appendChild(ret);
     } else if(String(d.adminStatus).toLowerCase() === 'returned'){
-      const lbl = document.createElement('span'); lbl.className = 'forwarded-label'; lbl.textContent = 'Returned'; lbl.style.marginLeft = '6px';
-      actions.appendChild(lbl);
+      const retIcon = document.createElement('button'); retIcon.type = 'button'; retIcon.className = 'returned-icon'; retIcon.title = 'Returned'; retIcon.setAttribute('aria-label','Returned ' + (d.controlNumber||d.control)); retIcon.style.marginLeft = '6px';
+      retIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10v6a2 2 0 0 1-2 2H7"></path><polyline points="7 10 3 14 7 18"></polyline></svg>';
+      actions.appendChild(retIcon);
     }
     li.appendChild(left);
     li.appendChild(actions);
@@ -537,6 +538,35 @@ function renderAdminInbox(externalFilter){
   // update badges in navbar
   try{ updateAdminInboxBadge(); }catch(e){}
 }
+
+// Enhance common toolbar buttons with icons and tooltips
+function enhanceToolbarIcons(){
+  const map = [
+    ['new-doc-btn','New Document', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>'],
+    ['search-btn','Search','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>'],
+    ['clear-search','Clear','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'],
+    ['download-template','Download Template','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>'],
+    ['export-csv','Export CSV','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>'],
+    ['bulk-update','Update Selected','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M7 11l5-5 5 5"></path></svg>'],
+    ['bulk-delete','Delete Selected','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>'],
+    ['clear-status-filter','Clear Filter','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'],
+    ['clear-wins-filter','Clear WINS Filter','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'],
+    ['clear-age-filter','Clear Age Filter','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>']
+  ];
+  map.forEach(([id, title, svg]) => {
+    try{
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.innerHTML = svg;
+      el.setAttribute('title', title);
+      el.setAttribute('aria-label', title);
+      el.classList.add('icon-btn');
+    }catch(e){}
+  });
+}
+
+// run enhancement on load
+try{ enhanceToolbarIcons(); }catch(e){}
 
 // Allow external callers (e.g., navbar menu) to change the admin inbox filter
 function setAdminInboxFilter(f){
@@ -617,6 +647,15 @@ function updateAdminInboxBadge(){
       const bfm = document.getElementById('badge-forwarded-menu'); if(bfm) bfm.textContent = counts.forwarded || 0;
       const brm = document.getElementById('badge-received-menu'); if(brm) brm.textContent = counts.received || 0;
       const brrm = document.getElementById('badge-returned-menu'); if(brrm) brrm.textContent = counts.returned || 0;
+    }catch(e){}
+    // also update dashboard-specific received badge anchors (e.g., show on users-dashboard link)
+    try{
+      // look for any element with id 'users-dashboard-page-btn' or other nav links and append received badge
+      const usersBtn = document.getElementById('users-dashboard-page-btn');
+      if(usersBtn){
+        if(counts.received) usersBtn.innerHTML = 'Users ' + `<span class="nav-badge badge-received" aria-label="${counts.received} received">${counts.received}</span>`;
+        else usersBtn.innerHTML = 'Users';
+      }
     }catch(e){}
   }catch(e){}
 }
@@ -1004,8 +1043,8 @@ docForm.addEventListener('submit', e => {
 
   // Validate control number format: ECOM-YYYY-NNNN (digits)
   const ctrlRe = /^ECOM-\d{4}-\d{4}$/;
-  if(!ctrlRe.test(controlNumber)){
-    alert('Control Number must follow the format ECOM-YYYY-NNNN (e.g. ECOM-2025-0001)');
+    if(!ctrlRe.test(controlNumber)){
+    alert('Control Number must follow the format ECOM-YYYY-NNNN (e.g. ECOM-2026-0001)');
     const ctrlInput = document.getElementById('control-number');
     if(ctrlInput) ctrlInput.focus();
     return;
@@ -1590,7 +1629,7 @@ function updateClock(){
   const el = document.getElementById('clock');
   if(!el) return;
   const now = new Date();
-  // Format: Mon, Dec 15 2025 — 14:05:32
+  // Format: Mon, Dec 15 2026 — 14:05:32
   const datePart = now.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
   const timePart = now.toLocaleTimeString(undefined, { hour12: false });
   el.textContent = `${datePart} — ${timePart}`;
