@@ -7,39 +7,23 @@
 		<title>Document Monitoring System</title>
 		<link rel="stylesheet" href="styles.css" />
 	</head>
-	<body>
+	<body class="no-navbar">
 		<header>
 			<h1>Document Monitoring System </h1>
 
 				<div class="navbar">
-				<a href="#home">Home</a>
-				<a href="#news">News</a>
-				<a href="documents_full.html" class="nav-btn" title="Open Full Documents View">Full Docs</a>
-				<div class="dropdown">
-					<button class="dropbtn">More
-					<i class="fa fa-caret-down"></i>
-					</button>
-					<div class="dropdown-content">
-					<a href="#">Link 1</a>
-					<a href="#">Link 2</a>
-					<a href="#">Link 3</a>
-					</div>
-				</div>
+				<a href="documents_full.html" id="documents-full-page-btn" class="nav-btn" title="Open Full Documents View">Full Docs</a>
+				<a href="admin_inbox.html" id="admin-inbox-page-btn" class="nav-btn" style="display:none;margin-left:8px" title="Open Admin Inbox Page">Admin Inbox</a>
 				</div>
 
 
 			<div class="header-right">
-				
 				<div id="clock" class="clock" aria-live="polite"></div>
 				<div id="user-info" class="hidden">
 					<span id="username-display"></span>
 					<span id="role-badge" class="role-badge" style="display:none;margin-left:8px"></span>
 					<button id="logout-btn">Logout</button>
 				</div>
-				<!-- Full documents page (all users) -->
-				<button id="documents-full-page-btn" style="display:inline-block;margin-left:18px" title="Open Full Documents View" onclick="window.location.href='documents_full.html'">Full Documents View</button>
-				<!-- Admin Inbox page link (visible only to admin via JS) -->
-				<button id="admin-inbox-page-btn" style="display:none;margin-left:8px" title="Open Admin Inbox Page" onclick="window.location.href='admin_inbox.html'">Admin Inbox Page</button>
 			</div>
 		</header>
 
