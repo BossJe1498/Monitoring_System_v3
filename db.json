@@ -1,5 +1,15 @@
 {
   "users": [],
-  "docs": [],
+  "docs": [
+    {
+      "controlNumber": "TEST-002",
+      "title": "Smoke Test Document",
+      "owner": "tester",
+      "createdAt": "1767235877450",
+      "notes": "Created by smoke test",
+      "forwarded": true,
+      "adminStatus": "Received"
+    }
+  ],
   "sessions": {}
 }
