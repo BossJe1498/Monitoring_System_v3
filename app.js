@@ -17,6 +17,8 @@ let currentUserRole = null;
 // Optional server API for shared DB
 const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? (location.protocol + '//' + location.hostname + ':3000/api') : (location.protocol + '//' + location.hostname + '/api');
 let USE_SERVER = false;
+let WS_CLIENT = null;
+let WS_RECONNECT_TIMER = null;
 
 // probe server once
 (function(){
@@ -26,10 +28,36 @@ let USE_SERVER = false;
         USE_SERVER = true;
         try{ announceStatus('Connected to sync server'); }catch(e){}
         startServerSync();
+        try{ startWebsocket(); }catch(e){}
       }
     }).catch(()=>{});
   }catch(e){}
 })();
+
+// start a websocket client to receive server push updates (reconnects automatically)
+function startWebsocket(){
+  try{
+    if(WS_CLIENT && (WS_CLIENT.readyState === WebSocket.OPEN || WS_CLIENT.readyState === WebSocket.CONNECTING)) return;
+    const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = scheme + '//' + location.hostname + (location.hostname === 'localhost' || location.hostname === '127.0.0.1' ? ':3000' : '') + '/ws';
+    WS_CLIENT = new WebSocket(wsUrl);
+    WS_CLIENT.addEventListener('open', () => { announceStatus('Realtime sync connected'); if(WS_RECONNECT_TIMER){ clearTimeout(WS_RECONNECT_TIMER); WS_RECONNECT_TIMER = null; } });
+    WS_CLIENT.addEventListener('message', (ev) => {
+      try{
+        const msg = JSON.parse(ev.data);
+        if(msg && msg.type === 'docs_updated'){
+          try{ fetch(API_BASE + '/docs').then(r => r.json()).then(j => { if(j && Array.isArray(j.docs)){ docs = j.docs; renderDocs(); updateAdminInboxBadge(); announceStatus('Realtime update received'); } }).catch(()=>{}); }catch(e){}
+        }
+      }catch(e){}
+    });
+    WS_CLIENT.addEventListener('close', () => {
+      try{ announceStatus('Realtime sync disconnected'); }catch(e){}
+      if(WS_RECONNECT_TIMER) clearTimeout(WS_RECONNECT_TIMER);
+      WS_RECONNECT_TIMER = setTimeout(() => { try{ startWebsocket(); }catch(e){} }, 3000);
+    });
+    WS_CLIENT.addEventListener('error', () => { try{ WS_CLIENT.close(); }catch(e){} });
+  }catch(e){}
+}
 
 // Start periodic server sync to fetch latest docs from server so other devices see updates
 let _serverSyncInterval = null;
@@ -655,14 +683,14 @@ function updateAdminInboxBadge(){
     const label = 'Admin Inbox';
     if(isInboxPage){
       const parts = [label];
-      if(counts.forwarded) parts.push(`<span class="nav-badge badge-forwarded" aria-label="${counts.forwarded} forwarded">${counts.forwarded}</span>`);
-      if(counts.received) parts.push(`<span class="nav-badge badge-received" aria-label="${counts.received} received">${counts.received}</span>`);
-      if(counts.returned) parts.push(`<span class="nav-badge badge-returned" aria-label="${counts.returned} returned">${counts.returned}</span>`);
+      if(counts.forwarded) parts.push(`<button type="button" class="nav-badge badge-forwarded admin-badge-btn" data-admin-filter="forwarded" aria-label="${counts.forwarded} forwarded">${counts.forwarded}</button>`);
+      if(counts.received) parts.push(`<button type="button" class="nav-badge badge-received admin-badge-btn" data-admin-filter="received" aria-label="${counts.received} received">${counts.received}</button>`);
+      if(counts.returned) parts.push(`<button type="button" class="nav-badge badge-returned admin-badge-btn" data-admin-filter="returned" aria-label="${counts.returned} returned">${counts.returned}</button>`);
       btn.innerHTML = parts.join(' ');
     } else {
       // dashboard/minor pages: show only received count if any
       if(counts.received){
-        btn.innerHTML = label + ' ' + `<span class="nav-badge badge-received" aria-label="${counts.received} received">${counts.received}</span>`;
+        btn.innerHTML = label + ' ' + `<button type="button" class="nav-badge badge-received admin-badge-btn" data-admin-filter="received" aria-label="${counts.received} received">${counts.received}</button>`;
       } else {
         btn.innerHTML = label;
       }
@@ -1503,6 +1531,21 @@ document.addEventListener('DOMContentLoaded', () => {
       renderLeftSidebar();
     });
   }
+
+  // Make admin inbox badges clickable across the app: set filter and open admin inbox
+  document.body.addEventListener('click', (e) => {
+    try{
+      const btn = e.target.closest && e.target.closest('[data-admin-filter]');
+      if(!btn) return;
+      e.preventDefault();
+      const f = btn.getAttribute('data-admin-filter');
+      if(f){
+        try{ setAdminInboxFilter(f); }catch(err){}
+        try{ localStorage.setItem('dms_admin_inbox_filter', f); }catch(er){}
+        window.location.href = 'admin_inbox.html';
+      }
+    }catch(e){}
+  });
 
   // Modal behavior: open from sidebar link (prevent navigation), and support open-in-new-tab button
   document.body.addEventListener('click', e => {
