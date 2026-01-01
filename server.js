@@ -43,6 +43,8 @@ async function ensureDB(){
   const app = express();
   app.use(cors());
   app.use(express.json());
+  const http = require('http');
+  const WebSocket = require('ws');
 
   app.get('/api/ping', (req,res) => res.json({ok:true}));
 
@@ -110,6 +112,8 @@ async function ensureDB(){
     const db = await readDB();
     db.docs = docs;
     await writeDB(db);
+    // broadcast to websocket clients that docs changed
+    try{ broadcast({ type: 'docs_updated', docsCount: (db.docs || []).length, counts: computeAdminCounts(db.docs || []) }); }catch(e){}
     return res.json({ ok:true });
   });
 
@@ -129,8 +133,16 @@ async function ensureDB(){
     if(idx === -1) return res.status(404).json({ error: 'not found' });
     db.docs[idx] = Object.assign({}, db.docs[idx], payload);
     await writeDB(db);
+    try{ broadcast({ type: 'docs_updated', docsCount: (db.docs || []).length, counts: computeAdminCounts(db.docs || []) }); }catch(e){}
     return res.json({ ok:true, doc: db.docs[idx] });
   });
+
+  // helper to compute admin counts server-side
+  function computeAdminCounts(docs){
+    const res = { forwarded:0, received:0, returned:0 };
+    (docs||[]).forEach(d => { if(d && d.forwarded) res.forwarded++; if(d && d.adminStatus === 'Received') res.received++; if(d && d.adminStatus === 'Returned') res.returned++; });
+    return res;
+  }
 
   // Helper to resolve session token from Authorization header or body
   function getSessionFromReq(req){
@@ -192,8 +204,19 @@ async function ensureDB(){
     return res.json({ ok:true });
   });
 
-  app.listen(PORT, ()=>{
-    console.log('Monitoring System API listening on port', PORT);
+  // attach WebSocket server to the HTTP server so same port is used
+  const server = http.createServer(app);
+  const wss = new WebSocket.Server({ server, path: '/ws' });
+
+  function broadcast(obj){
+    try{
+      const txt = JSON.stringify(obj || {});
+      wss.clients.forEach(c => { try{ if(c.readyState === WebSocket.OPEN) c.send(txt); }catch(e){} });
+    }catch(e){}
+  }
+
+  server.listen(PORT, ()=>{
+    console.log('Monitoring System API (with WS) listening on port', PORT);
   });
 
 })();
