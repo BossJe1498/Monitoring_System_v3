@@ -36,8 +36,17 @@
     <main style="max-width:760px;margin:22px auto;padding:16px">
       <div class="card">
         <h2>Your Profile</h2>
-        <p>User: <strong id="profile-username-val"> </strong></p>
-        <p>Role: <strong id="profile-role-val"> </strong></p>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div id="profile-avatar" class="avatar" title="Profile avatar"></div>
+          <div>
+            <p>User: <strong id="profile-username-val"> </strong></p>
+            <p>Role: <strong id="profile-role-val"> </strong></p>
+            <div style="margin-top:8px">
+              <input id="avatar-upload" type="file" accept="image/*" style="display:inline-block" />
+              <button id="remove-avatar" type="button" style="margin-left:8px">Remove</button>
+            </div>
+          </div>
+        </div>
         <div style="margin-top:12px">
           <button id="profile-signout">Sign Out</button>
           <button id="change-password-btn" style="margin-left:8px">Change Password</button>
@@ -77,6 +86,22 @@
         if(cpBtn && cpCard){ cpBtn.addEventListener('click', () => { cpCard.classList.toggle('hidden'); }); }
         if(cancelCp && cpCard){ cancelCp.addEventListener('click', () => { cpCard.classList.add('hidden'); cpForm.reset(); }); }
         if(cpForm){ cpForm.addEventListener('submit', (ev) => { ev.preventDefault(); const oldPwd = document.getElementById('current-password').value || ''; const newPwd = document.getElementById('new-password').value || ''; const newPc = document.getElementById('new-password-confirm').value || ''; if(!oldPwd || !newPwd){ alert('Both current and new passwords required'); return; } if(newPwd !== newPc){ alert('New passwords do not match'); return; } try{ window.changePassword(oldPwd, newPwd).then(res => { if(res && res.ok){ alert('Password changed'); cpCard.classList.add('hidden'); cpForm.reset(); } else { alert((res && res.error) || 'Change failed'); } }); }catch(e){ alert('Error changing password'); } }); }
+        // Avatar upload handlers
+        const avatarEl = document.getElementById('profile-avatar');
+        const avatarUpload = document.getElementById('avatar-upload');
+        const removeAvatar = document.getElementById('remove-avatar');
+        function renderAvatar(){
+          try{
+            const data = localStorage.getItem('dms_profile_avatar');
+            if(data){ avatarEl.innerHTML = '<img src="'+data+'" alt="avatar">'; }
+            else { const uname = (localStorage.getItem('dms_auth_v1')||'').trim(); const initials = uname.split(' ').map(s=>s[0]||'').join('').slice(0,2).toUpperCase(); avatarEl.innerHTML = initials || '?'; }
+          }catch(e){ }
+        }
+        renderAvatar();
+        if(avatarUpload){ avatarUpload.addEventListener('change', (ev) => {
+          const f = ev.target.files && ev.target.files[0]; if(!f) return; const r = new FileReader(); r.onload = function(){ try{ localStorage.setItem('dms_profile_avatar', r.result); renderAvatar(); alert('Avatar updated'); }catch(e){ alert('Unable to save avatar'); } }; r.readAsDataURL(f);
+        }); }
+        if(removeAvatar){ removeAvatar.addEventListener('click', () => { try{ localStorage.removeItem('dms_profile_avatar'); renderAvatar(); }catch(e){} }); }
       });
     </script>
   </body>
