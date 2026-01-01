@@ -63,7 +63,7 @@
                   <button class="icon-btn admin-filter-item-box" data-filter="all" title="Show all">All</button>
                 </div>
               </div>
-              <input id="admin-inbox-search" placeholder="Search inbox..." style="flex:1;padding:6px;border:1px solid #e6eef8;border-radius:6px" />
+                <input id="admin-inbox-search" placeholder="Search inbox..." style="flex:1;padding:6px;border:1px solid #e6eef8;border-radius:6px" />
             </div>
             <div id="admin-inbox-list"></div>
             <div id="admin-inbox-pagination" class="sidebar-pagination"></div>
@@ -122,6 +122,9 @@
         if(btn) btn.addEventListener('click', () => { try{ window.renderAdminInbox && window.renderAdminInbox(); }catch(e){} });
         // render inbox once app is ready
         setTimeout(() => { try{ window.renderAdminInbox && window.renderAdminInbox(); }catch(e){} }, 100);
+        // activate search input
+        const searchEl = document.getElementById('admin-inbox-search');
+        if(searchEl){ searchEl.addEventListener('input', (ev) => { try{ window.renderAdminInbox && window.renderAdminInbox(); }catch(e){} }); }
         // wire filter menu (box version)
         const filterBtnBox = document.getElementById('admin-filter-btn-box');
         const menuBox = document.getElementById('admin-filter-menu-box');
