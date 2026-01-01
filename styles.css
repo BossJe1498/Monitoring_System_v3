@@ -11,10 +11,10 @@ html,body{height:100%;
   box-sizing: border-box;
 }
 
-body{font-family:Segoe UI,Roboto,Arial, sans-serif;background:url(BG6.jpg); background-repeat: no-repeat ; background-size:cover; background-blend-mode: soft-light ; background-color:transparent; backface-visibility: inherit; }
+body{font-family:Segoe UI,Roboto,Arial, sans-serif;background:url(BG7.jpg); background-repeat: no-repeat ; background-size:cover; background-blend-mode: soft-light ; background-color:transparent; backface-visibility: inherit; }
 /* Improved background: subtle gradient overlay for readability */
 body{
-  background-image: linear-gradient(180deg, rgba(20,30,48,0.18), rgba(255,255,255,0.02)), url(BG6.jpg);
+  background-image: linear-gradient(180deg, rgba(20,30,48,0.18), rgba(255,255,255,0.02)), url(BG7.jpg);
   background-size: cover;
   background-attachment: fixed;
   background-position: center;
