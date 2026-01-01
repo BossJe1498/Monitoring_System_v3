@@ -703,10 +703,10 @@ function updateAdminInboxBadge(){
     }
     // update inbox box badges/menu counts if present
     try{
-      const bf = document.getElementById('badge-forwarded-box'); if(bf){ if(counts.forwarded){ bf.textContent = counts.forwarded; bf.style.display = 'inline-block'; } else { bf.textContent = ''; bf.style.display = 'none'; } }
-      const bfm = document.getElementById('badge-forwarded-menu'); if(bfm){ if(counts.forwarded){ bfm.textContent = counts.forwarded; bfm.style.display = 'inline-block'; } else { bfm.textContent = ''; bfm.style.display = 'none'; } }
-      const brm = document.getElementById('badge-received-menu'); if(brm){ if(counts.received){ brm.textContent = counts.received; brm.style.display = 'inline-block'; } else { brm.textContent = ''; brm.style.display = 'none'; } }
-      const brrm = document.getElementById('badge-returned-menu'); if(brrm){ if(counts.returned){ brrm.textContent = counts.returned; brrm.style.display = 'inline-block'; } else { brrm.textContent = ''; brrm.style.display = 'none'; } }
+      const bf = document.getElementById('badge-forwarded-box'); if(bf) bf.textContent = counts.forwarded || '';
+      const bfm = document.getElementById('badge-forwarded-menu'); if(bfm) bfm.textContent = counts.forwarded || 0;
+      const brm = document.getElementById('badge-received-menu'); if(brm) brm.textContent = counts.received || 0;
+      const brrm = document.getElementById('badge-returned-menu'); if(brrm) brrm.textContent = counts.returned || 0;
     }catch(e){}
     // also update dashboard-specific received badge anchors (e.g., show on users-dashboard link)
     try{
