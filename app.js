@@ -263,7 +263,7 @@ function renderDocs(filter){
       <td class="admin-status-cell">${adminStatusHtml}</td>
       <td class="actions">
         <button class="icon-btn" data-edit="${escapeHtml(doc.controlNumber)}" title="Edit" aria-label="Edit ${escapeHtml(doc.controlNumber)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg></button>
-        ${!isAdmin && !doc.forwarded ? `<button class="icon-btn forward" data-forward="${escapeHtml(doc.controlNumber)}" title="Forward to Admin" aria-label="Forward ${escapeHtml(doc.controlNumber)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>` : (!isAdmin && doc.forwarded ? `<span class="forwarded-label">Forwarded</span>` : '')}
+        ${!isAdmin && !doc.forwarded && String(doc.adminStatus).toLowerCase() !== 'received' ? `<button class="icon-btn forward" data-forward="${escapeHtml(doc.controlNumber)}" title="Forward to Admin" aria-label="Forward ${escapeHtml(doc.controlNumber)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>` : (!isAdmin && doc.forwarded ? `<span class="forwarded-label">Forwarded</span>` : (!isAdmin && String(doc.adminStatus).toLowerCase() === 'received' ? `<span class="received-label">Received by Admin</span>` : ''))}
         ${isAdmin && doc.forwarded ? `<button class="icon-btn receive" data-receive="${escapeHtml(doc.controlNumber)}" title="Receive forwarded document" aria-label="Receive ${escapeHtml(doc.controlNumber)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>` : ''}
         ${isAdmin && doc.adminStatus === 'Received' ? `<button class="icon-btn return" data-return="${escapeHtml(doc.controlNumber)}" title="Return to IC" aria-label="Return ${escapeHtml(doc.controlNumber)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 4 6 9 1"></polyline><path d="M20 22v-7a4 4 0 0 0-4-4H4"></path></svg><span class="btn-label">Return</span></button>` : (isAdmin && doc.adminStatus === 'Returned' ? `<span class="returned-label">Returned</span>` : '')}
         <button class="icon-btn delete" data-delete="${escapeHtml(doc.controlNumber)}" title="Delete" aria-label="Delete ${escapeHtml(doc.controlNumber)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg></button>
@@ -1002,6 +1002,22 @@ function showDashboard(userName){
   renderDocs();
   adjustUIForRole();
   try{ renderNavAvatar(); }catch(e){}
+  // wire title selects to show/hide 'Other' input if present
+  try{
+    const newTitleSel = document.getElementById('doc-title');
+    if(newTitleSel && newTitleSel.tagName === 'SELECT'){
+      const other = document.getElementById('doc-title-other');
+      newTitleSel.addEventListener('change', () => { if(other) other.style.display = (newTitleSel.value === 'Other') ? '' : 'none'; });
+      // init
+      if(other) other.style.display = (newTitleSel.value === 'Other') ? '' : 'none';
+    }
+    const editTitleSel = document.getElementById('edit-title');
+    if(editTitleSel && editTitleSel.tagName === 'SELECT'){
+      const otherE = document.getElementById('edit-title-other');
+      editTitleSel.addEventListener('change', () => { if(otherE) otherE.style.display = (editTitleSel.value === 'Other') ? '' : 'none'; });
+      if(otherE) otherE.style.display = (editTitleSel.value === 'Other') ? '' : 'none';
+    }
+  }catch(e){}
   try{ updateAdminInboxBadge(); }catch(e){}
   startInactivityWatcher();
   try{ announceStatus('Signed in'); }catch(e){}
@@ -1252,7 +1268,19 @@ cancelNew.addEventListener('click', () => {
 docForm.addEventListener('submit', e => {
   e.preventDefault();
   const controlNumber = document.getElementById('control-number').value.trim();
-  const title = document.getElementById('doc-title').value.trim();
+  // title may be a select with 'Other' option
+  const titleEl = document.getElementById('doc-title');
+  let title = '';
+  if(titleEl){
+    if(titleEl.tagName === 'SELECT' && titleEl.value === 'Other'){
+      const other = document.getElementById('doc-title-other');
+      title = other ? (other.value || '').trim() : '';
+    } else {
+      title = (titleEl.value || '').trim();
+    }
+  } else {
+    title = '';
+  }
   const owner = document.getElementById('doc-owner').value.trim();
   const status = document.getElementById('doc-status').value;
   const winsStatus = document.getElementById('wins-status').value;
@@ -1393,6 +1421,9 @@ docsTableBody.addEventListener('click', e => {
     try{ if(!isUser && (localStorage.getItem(AUTH_ROLE_KEY) === 'user')) isUser = true; }catch(e){}
     if(!isUser){ alert('Only non-admin users can forward documents to admin.'); return; }
     if(confirm(`Forward document ${ctrl} to admin?`)){
+      // prevent forwarding if admin already received it
+      const doc = docs.find(d => d.controlNumber === ctrl);
+      if(doc && String(doc.adminStatus).toLowerCase() === 'received'){ alert('This document has already been received by admin and cannot be forwarded.'); return; }
       forwardDoc(ctrl);
     }
     return;
