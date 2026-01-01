@@ -1078,11 +1078,9 @@ if(registerForm){
       fetch(API_BASE + '/auth/register', { method: 'POST', headers: { 'Content-Type':'application/json', 'Authorization': token ? ('Bearer ' + token) : '' }, body: JSON.stringify({ username: u, password: p, role }) }).then(r => {
         if(!r.ok){ r.json().then(j => alert(j && j.error ? j.error : 'Registration failed on server')); return; }
         r.json().then(j => {
-          // After server registration, sign in to receive session token
-          const maybe = signIn(u,p);
-          if(maybe && typeof maybe.then === 'function'){
-            maybe.then(role2 => { if(role2){ try{ localStorage.setItem(AUTH_KEY, u); localStorage.setItem(AUTH_ROLE_KEY, role2); }catch(e){} showDashboard(u); currentUserRole = role2; adjustUIForRole(); } else alert('Registration succeeded but login failed'); });
-          } else if(maybe){ try{ localStorage.setItem(AUTH_KEY, u); localStorage.setItem(AUTH_ROLE_KEY, maybe); }catch(e){} showDashboard(u); currentUserRole = maybe; adjustUIForRole(); }
+          // After successful registration, do NOT auto-login; show success and return to login form
+          alert('Registration successful. Please sign in using your new credentials.');
+          registerForm.classList.add('hidden'); showRegisterBtn.classList.remove('hidden'); registerForm.reset();
         }).catch(()=>{ alert('Registration succeeded but unexpected server response'); });
       }).catch(()=>{ alert('Registration failed (network)'); });
       return;
@@ -1090,8 +1088,9 @@ if(registerForm){
 
     const res = registerUser(u,p,role);
     if(!res.ok){ alert(res.error || 'Unable to register'); return; }
-    try{ localStorage.setItem(AUTH_KEY, u); localStorage.setItem(AUTH_ROLE_KEY, role); }catch(e){}
-    showDashboard(u); currentUserRole = role; adjustUIForRole();
+    // For local/demo registration, do NOT auto-login; ask user to sign in
+    alert('Registration successful. Please sign in using your new credentials.');
+    registerForm.classList.add('hidden'); showRegisterBtn.classList.remove('hidden'); registerForm.reset();
   });
 }
 
@@ -1136,6 +1135,63 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Profile is a standalone page now (profile.html); inline modal handlers removed.
+
+// Forgot password handler (link in login forms)
+document.addEventListener('click', (ev) => {
+  try{
+    const a = ev.target.closest && ev.target.closest('#forgot-password-link');
+    if(!a) return;
+    ev.preventDefault();
+    const u = prompt('Enter your username to reset password:');
+    if(!u) return;
+    if(USE_SERVER){
+      fetch(API_BASE + '/auth/forgot', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username: u }) }).then(r => r.json()).then(j => {
+        if(!j || !j.ok){ alert(j && j.error ? j.error : 'Unable to request reset'); return; }
+        // demo: server returns token; prompt user to enter token + new password
+        const token = j.token || '';
+        alert('Reset token: ' + token + '\n(For demo only; in production this would be emailed.)');
+        const provided = prompt('Enter the reset token you received:');
+        if(!provided) return;
+        const npw = prompt('Enter your new password:');
+        if(!npw) return;
+        fetch(API_BASE + '/auth/reset', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token: provided, password: npw }) }).then(r2 => r2.json()).then(j2 => {
+          if(!j2 || !j2.ok){ alert(j2 && j2.error ? j2.error : 'Reset failed'); return; }
+          alert('Password reset. Please sign in.');
+        }).catch(()=>{ alert('Reset failed'); });
+      }).catch(()=>{ alert('Reset request failed'); });
+    } else {
+      // local-demo fallback: update persisted users if present
+      try{
+        const users = loadUsers();
+        if(!users[u]){ alert('User not found'); return; }
+        const npw = prompt('Enter your new password:');
+        if(!npw) return;
+        users[u].password = npw;
+        saveUsers(users);
+        alert('Password reset locally. Please sign in.');
+      }catch(e){ alert('Reset failed'); }
+    }
+  }catch(e){}
+});
+
+// Change password implementation (used by profile.html form)
+window.changePassword = function(oldPwd, newPwd){
+  if(USE_SERVER){
+    const token = localStorage.getItem(AUTH_TOKEN_KEY) || '';
+    return fetch(API_BASE + '/auth/change', { method: 'POST', headers: { 'Content-Type':'application/json', 'Authorization': token ? ('Bearer ' + token) : '' }, body: JSON.stringify({ oldPassword: oldPwd, newPassword: newPwd }) }).then(r => r.json()).then(j => { return j; }).catch(e => ({ ok:false }));
+  }
+  // local fallback
+  try{
+    const current = localStorage.getItem(AUTH_KEY);
+    if(!current) return Promise.resolve({ ok:false, error:'not signed in' });
+    const users = loadUsers();
+    if(!users[current]) return Promise.resolve({ ok:false, error:'user not found' });
+    if(users[current].password !== oldPwd) return Promise.resolve({ ok:false, error:'invalid old password' });
+    users[current].password = newPwd;
+    saveUsers(users);
+    return Promise.resolve({ ok:true });
+  }catch(e){ return Promise.resolve({ ok:false }); }
+};
 
 newDocBtn.addEventListener('click', () => {
   // open new form and clear editing state
